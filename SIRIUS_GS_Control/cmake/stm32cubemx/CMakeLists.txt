@@ -34,6 +34,8 @@ target_sources(stm32cubemx INTERFACE
     ../../Core/sirius-embedded-common/Src/Sensor/PressureSensor/ETM375.c
     ../../Core/sirius-embedded-common/Src/Device/Valve/Valve.c
     ../../Core/sirius-embedded-common/Src/Device/Valve/HBL388.c
+    ../../Core/sirius-embedded-common/Src/Device/Button/Button.c
+    ../../Core/sirius-embedded-common/Src/Device/Button/ButtonActiveLow.c  
     ../../Core/sirius-embedded-common/Src/Device/Storage/Storage.c
     ../../Core/sirius-embedded-common/Src/Device/Storage/SDCard.c
     ../../Core/sirius-embedded-common/Src/Device/Telecommunication/Telecommunication.c

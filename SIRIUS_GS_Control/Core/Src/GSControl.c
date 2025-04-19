@@ -17,10 +17,11 @@ static void executeAbort(uint32_t timestamp_ms);
 static void initGPIOs();
 static void initUART();
 static void initUSB();
+static void initButton();
 
 static void initTelecom();
 
-void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom) {
+void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* button) {
   gsControl.errorStatus.value  = 0;
   gsControl.status.value       = 0;
   gsControl.currentState       = GS_CONTROL_STATE_INIT;
@@ -30,17 +31,21 @@ void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* teleco
   gsControl.usb    = usb;
 
   gsControl.telecom = telecom;
+  gsControl.button = button;
 
   initTelecom();
 
   initGPIOs();
   initUART();
   initUSB();
+  initButton();
 }
 
 void GSControl_tick(uint32_t timestamp_ms) {
+  gsControl.button->tick(gsControl.button, timestamp_ms);
   GSControl_execute(timestamp_ms);
 }
+
 
 void GSControl_execute(uint32_t timestamp_ms) {
   switch (gsControl.currentState) {
@@ -134,4 +139,14 @@ void initTelecom(){
 
   gsControl.telecom->init((struct Telecommunication*)gsControl.telecom);
   gsControl.telecom->uart = gsControl.uart;
+}
+
+void initButton(){
+  if(gsControl.button->init == FUNCTION_NULL_POINTER){
+    gsControl.button->errorStatus.bits.nullFunctionPointer = 1;
+    return;
+  }
+
+  gsControl.button->init((struct Button*)gsControl.button);
+  gsControl.button->gpio = &gsControl.gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX];
 }
