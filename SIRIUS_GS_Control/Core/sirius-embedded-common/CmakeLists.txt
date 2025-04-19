@@ -1,0 +1,54 @@
+cmake_minimum_required(VERSION 3.28)
+
+set(LibName common)
+
+add_library(${LibName} INTERFACE)
+
+add_subdirectory(sirius-headers-common)
+
+target_include_directories(${LibName} INTERFACE
+
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/Device/Igniter
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/Device/Storage
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/Device/Telecommunication
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/Device/Valve
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/LowLevelDriver/ADC
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/LowLevelDriver/GPIO
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/LowLevelDriver/PWM
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/LowLevelDriver/UART
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/Sensor/Accelerometer
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/Sensor/LoadCell
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/Sensor/PressureSensor
+${CMAKE_CURRENT_SOURCE_DIR}/Inc/Sensor/TemperatureSensor
+
+)
+
+target_sources(${LibName} INTERFACE
+
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Device/Igniter/Igniter.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Device/Storage/ExternalFlash.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Device/Storage/SDCard.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Device/Storage/Storage.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Device/Telecommunication/Telecommunication.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Device/Valve/HBL388.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Device/Valve/SG90.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Device/Valve/Valve.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/ADC/ADC12.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/ADC/ADC12Channel.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/ADC/ADC12ChannelHAL.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/ADC/ADC12HAL.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/GPIO/GPIO.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/GPIO/GPIOHAL.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/PWM/PWM.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/PWM/PWMHAL.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/UART/UART.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/LowLevelDriver/UART/UARTHAL.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Sensor/Accelerometer/Accelerometer.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Sensor/LoadCell/LoadCell.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Sensor/PressureSensor/ETM375.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Sensor/PressureSensor/PressureSensor.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Sensor/TemperatureSensor/NTC3950.c
+${CMAKE_CURRENT_SOURCE_DIR}/Src/Sensor/TemperatureSensor/TemperatureSensor.c
+)
+
+
