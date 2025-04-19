@@ -15,6 +15,8 @@
 
 #include "stm32f4xx_hal.h"
 
+#include "../sirius-embedded-common/Inc/Device/Button/ButtonActiveLow.h"
+
 #define FUNCTION_NULL_POINTER 0
 
 typedef struct {
@@ -28,10 +30,11 @@ typedef struct {
   USB*   usb;
 
   Telecommunication* telecom;
+  Button* button;
 }
 GSControl;
 
-extern void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom);
+extern void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* button);
 
 extern void GSControl_tick(uint32_t timestamp_ms);
 

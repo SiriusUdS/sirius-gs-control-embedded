@@ -59,6 +59,7 @@ GPIO gpios[GS_CONTROL_GPIO_AMOUNT] = {0};
 UART uart                          = {0};
 volatile USB usb                   = {0};
 Telecommunication telecom          = {0};
+Button button                      = {0};
 
 /* USER CODE END PV */
 
@@ -77,6 +78,7 @@ static void setupGPIOs();
 static void setupUART();
 static void setupUSB();
 static void setupTelecommunication();
+static void setupButton();
 
 /* USER CODE END PFP */
 
@@ -128,11 +130,12 @@ int main(void)
   setupGPIOs();
   setupUART();
   setupUSB();
+  setupButton();
 
   // Setup Sensors/Devices
   setupTelecommunication();
   
-  GSControl_init(gpios, &uart, &usb, &telecom);
+  GSControl_init(gpios, &uart, &usb, &telecom, &button);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -705,6 +708,11 @@ void setupUSB() {
 void setupTelecommunication(){
   telecom.errorStatus.bits.notInitialized = 1;
   telecom.init = (Telecommunication_init)TELECOM_init;
+}
+
+void setupButton(){
+  button.errorStatus.bits.notInitialized = 1;
+  button.init = (Button_init)ButtonActiveLow_init;
 }
 
 /* USER CODE END 4 */
