@@ -8,10 +8,6 @@ uint16_t testValueThermistance = 0;
 
 static void executeInit(uint32_t timestamp_ms);
 static void executeIdle(uint32_t timestamp_ms);
-static void executeArming(uint32_t timestamp_ms);
-static void executeIgnition(uint32_t timestamp_ms);
-static void executePoweredFlight(uint32_t timestamp_ms);
-static void executeUnpoweredFlight(uint32_t timestamp_ms);
 static void executeAbort(uint32_t timestamp_ms);
 
 static void initGPIOs();
