@@ -1,6 +1,6 @@
-#include "../Inc/Engine.h"
+#include "../Inc/GSControl.h"
 
-static volatile Engine engine;
+static volatile GSControl engine;
 
 uint32_t previous;
 uint32_t previous2;
@@ -27,7 +27,7 @@ static void initTelecom();
 static void tickValves(uint32_t timestamp_ms);
 static void tickTemperatureSensors();
 
-void Engine_init(PWM* pwms, ADC12* adc, GPIO* gpios, UART* uart, USB* usb, Valve* valves, TemperatureSensor* temperatureSensors, Telecommunication* telecom) {
+void GSControl_init(PWM* pwms, ADC12* adc, GPIO* gpios, UART* uart, USB* usb, Valve* valves, TemperatureSensor* temperatureSensors, Telecommunication* telecom) {
   engine.errorStatus.value  = 0;
   engine.status.value       = 0;
   engine.currentState       = ENGINE_STATE_INIT;
@@ -54,14 +54,14 @@ void Engine_init(PWM* pwms, ADC12* adc, GPIO* gpios, UART* uart, USB* usb, Valve
   initUSB();
 }
 
-void Engine_tick(uint32_t timestamp_ms) {
+void GSControl_tick(uint32_t timestamp_ms) {
   tickTemperatureSensors(timestamp_ms);
   tickValves(timestamp_ms);
 
-  Engine_execute(timestamp_ms);
+  GSControl_execute(timestamp_ms);
 }
 
-void Engine_execute(uint32_t timestamp_ms) {
+void GSControl_execute(uint32_t timestamp_ms) {
   switch (engine.currentState) {
     case ENGINE_STATE_INIT:
       executeInit(timestamp_ms);

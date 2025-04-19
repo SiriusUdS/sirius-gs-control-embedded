@@ -1,6 +1,3 @@
 [submodule "SIRIUS_GS_Control/Core/sirius-embedded-common"]
 	path = SIRIUS_GS_Control/Core/sirius-embedded-common
 	url = https://github.com/SiriusUdS/sirius-embedded-common.git
-[submodule "sirius-embedded-common"]
-	path = sirius-embedded-common
-	url = https://github.com/SiriusUdS/sirius-embedded-common.git

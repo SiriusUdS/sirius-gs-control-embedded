@@ -1,2 +1,0 @@
-C:/Users/pitch/Documents/GitHub/sirius-headers-common/CMakeFiles/edit_cache.dir
-C:/Users/pitch/Documents/GitHub/sirius-headers-common/CMakeFiles/rebuild_cache.dir
