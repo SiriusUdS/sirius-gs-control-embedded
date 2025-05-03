@@ -43,9 +43,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
-DMA_HandleTypeDef hdma_adc1;
-
 SD_HandleTypeDef hsd;
 
 SPI_HandleTypeDef hspi2;
@@ -59,15 +56,13 @@ GPIO gpios[GS_CONTROL_GPIO_AMOUNT] = {0};
 UART uart                          = {0};
 volatile USB usb                   = {0};
 Telecommunication telecom          = {0};
-Button button                      = {0};
+Button button[4]                   = {0};
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
-static void MX_ADC1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_SDIO_SD_Init(void);
@@ -116,8 +111,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_ADC1_Init();
   MX_USART1_UART_Init();
   MX_TIM4_Init();
   MX_USB_DEVICE_Init();
@@ -248,193 +241,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief ADC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC1_Init(void)
-{
-
-  /* USER CODE BEGIN ADC1_Init 0 */
-
-  /* USER CODE END ADC1_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC1_Init 1 */
-
-  /* USER CODE END ADC1_Init 1 */
-
-  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-  */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
-  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = ENABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 16;
-  hadc1.Init.DMAContinuousRequests = ENABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_0;
-  sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_1;
-  sConfig.Rank = 2;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_2;
-  sConfig.Rank = 3;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_3;
-  sConfig.Rank = 4;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_4;
-  sConfig.Rank = 5;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_5;
-  sConfig.Rank = 6;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_6;
-  sConfig.Rank = 7;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_7;
-  sConfig.Rank = 8;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_8;
-  sConfig.Rank = 9;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_9;
-  sConfig.Rank = 10;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_10;
-  sConfig.Rank = 11;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_11;
-  sConfig.Rank = 12;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_12;
-  sConfig.Rank = 13;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_13;
-  sConfig.Rank = 14;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_14;
-  sConfig.Rank = 15;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_15;
-  sConfig.Rank = 16;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC1_Init 2 */
-
-  /* USER CODE END ADC1_Init 2 */
-
 }
 
 /**
@@ -604,22 +410,6 @@ static void MX_USART1_UART_Init(void)
 }
 
 /**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
-{
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA2_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  /* DMA2_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -655,6 +445,28 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : ADC_PRESSURE_SENSOR_TANK_Pin ADC_PRESSURE_SENSOR_COMBUSTION_CHAMBER_Pin ADC_BATTERY_TENSION_Pin ADC_UNUSED_3_Pin
+                           ADC_UNUSED_LOAD_SENSOR_1_Pin ADC_UNUSED_LOAD_SENSOR_2_Pin */
+  GPIO_InitStruct.Pin = ADC_PRESSURE_SENSOR_TANK_Pin|ADC_PRESSURE_SENSOR_COMBUSTION_CHAMBER_Pin|ADC_BATTERY_TENSION_Pin|ADC_UNUSED_3_Pin
+                          |ADC_UNUSED_LOAD_SENSOR_1_Pin|ADC_UNUSED_LOAD_SENSOR_2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : ADC_TEMPERATURE_SENSOR_1_Pin ADC_TEMPERATURE_SENSOR_2_Pin ADC_TEMPERATURE_SENSOR_3_Pin ADC_TEMPERATURE_SENSOR_4_Pin
+                           ADC_TEMPERATURE_SENSOR_5_Pin ADC_TEMPERATURE_SENSOR_6_Pin ADC_TEMPERATURE_SENSOR_7_Pin ADC_TEMPERATURE_SENSOR_8_Pin */
+  GPIO_InitStruct.Pin = ADC_TEMPERATURE_SENSOR_1_Pin|ADC_TEMPERATURE_SENSOR_2_Pin|ADC_TEMPERATURE_SENSOR_3_Pin|ADC_TEMPERATURE_SENSOR_4_Pin
+                          |ADC_TEMPERATURE_SENSOR_5_Pin|ADC_TEMPERATURE_SENSOR_6_Pin|ADC_TEMPERATURE_SENSOR_7_Pin|ADC_TEMPERATURE_SENSOR_8_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : ADC_UNUSED_1_Pin ADC_UNUSED_2_Pin */
+  GPIO_InitStruct.Pin = ADC_UNUSED_1_Pin|ADC_UNUSED_2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /*Configure GPIO pins : GPIO_OUTPUT_EXT_FLASH_HOLD_Pin GPIO_OUTPUT_EXT_FLASH_WP_Pin */
   GPIO_InitStruct.Pin = GPIO_OUTPUT_EXT_FLASH_HOLD_Pin|GPIO_OUTPUT_EXT_FLASH_WP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -687,9 +499,28 @@ static void MX_GPIO_Init(void)
 void setupGPIOs() {
   gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].errorStatus.bits.notInitialized = 1;
   gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].pinNumber = GPIO_PIN_0;
+  gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].pinNumber = GPIO_PIN_7;
   gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].mode = GPIO_OUTPUT_MODE;
   gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].init = (GPIO_init)GPIOHAL_init;
+
+  gpios[1].errorStatus.bits.notInitialized = 1;
+  gpios[1].externalHandle = GPIOE;
+  gpios[1].pinNumber = GPIO_PIN_8;
+  gpios[1].mode = GPIO_OUTPUT_MODE;
+  gpios[1].init = (GPIO_init)GPIOHAL_init;
+
+  gpios[2].errorStatus.bits.notInitialized = 1;
+  gpios[2].externalHandle = GPIOE;
+  gpios[2].pinNumber = GPIO_PIN_9;
+  gpios[2].mode = GPIO_OUTPUT_MODE;
+  gpios[2].init = (GPIO_init)GPIOHAL_init;
+
+  gpios[3].errorStatus.bits.notInitialized = 1;
+  gpios[3].externalHandle = GPIOE;
+  gpios[3].pinNumber = GPIO_PIN_10;
+  gpios[3].mode = GPIO_OUTPUT_MODE;
+  gpios[3].init = (GPIO_init)GPIOHAL_init;
+
 }
 
 void setupUART() {
@@ -711,8 +542,11 @@ void setupTelecommunication(){
 }
 
 void setupButton(){
-  button.errorStatus.bits.notInitialized = 1;
-  button.init = (Button_init)ButtonActiveLow_init;
+  for(uint8_t i=0; i<4;i++)
+  {
+    button[i].errorStatus.bits.notInitialized = 1;
+    button[i].init = (Button_init)ButtonActiveLow_init;
+  }
 }
 
 /* USER CODE END 4 */

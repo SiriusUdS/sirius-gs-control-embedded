@@ -138,11 +138,14 @@ void initTelecom(){
 }
 
 void initButton(){
-  if(gsControl.button->init == FUNCTION_NULL_POINTER){
-    gsControl.button->errorStatus.bits.nullFunctionPointer = 1;
-    return;
-  }
+  for (uint8_t i = 0; i < GS_CONTROL_GPIO_AMOUNT; i++) {
+    if (gsControl.button[i].init == FUNCTION_NULL_POINTER) {
+      gsControl.button[i].errorStatus.bits.nullFunctionPointer = 1;
+      continue;
+    }
 
-  gsControl.button->init((struct Button*)gsControl.button);
-  gsControl.button->gpio = &gsControl.gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX];
+    gsControl.button[i].init((struct Button*)gsControl.button);
+    gsControl.button[i].gpio = &gsControl.gpios[i];
+  }
+  return;
 }

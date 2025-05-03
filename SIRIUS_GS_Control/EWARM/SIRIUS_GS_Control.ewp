@@ -1190,15 +1190,6 @@
         <name>$PROJ_DIR$/../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$/../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$/../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$/../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_adc.c</name>
-      </file>
-      <file>
         <name>$PROJ_DIR$/../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_sdmmc.c</name>
       </file>
       <file>

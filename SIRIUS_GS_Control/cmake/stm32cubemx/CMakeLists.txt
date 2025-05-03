@@ -39,10 +39,6 @@ target_sources(stm32cubemx INTERFACE
     ../../Core/sirius-embedded-common/Src/Device/Storage/Storage.c
     ../../Core/sirius-embedded-common/Src/Device/Storage/SDCard.c
     ../../Core/sirius-embedded-common/Src/Device/Telecommunication/Telecommunication.c
-    ../../Core/sirius-embedded-common/Src/LowLevelDriver/ADC/ADC12Channel.c
-    ../../Core/sirius-embedded-common/Src/LowLevelDriver/ADC/ADC12ChannelHAL.c
-    ../../Core/sirius-embedded-common/Src/LowLevelDriver/ADC/ADC12.c
-    ../../Core/sirius-embedded-common/Src/LowLevelDriver/ADC/ADC12HAL.c
     ../../Core/sirius-embedded-common/Src/LowLevelDriver/GPIO/GPIO.c
     ../../Core/sirius-embedded-common/Src/LowLevelDriver/GPIO/GPIOHAL.c
     ../../Core/sirius-embedded-common/Src/LowLevelDriver/UART/UART.c
