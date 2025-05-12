@@ -497,29 +497,29 @@ static void MX_GPIO_Init(void)
 // These should only link HAL to instance and set base function pointers
 
 void setupGPIOs() {
-  gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].pinNumber = GPIO_PIN_7;
-  gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_BUTTON_IGNITE_INDEX].init = (GPIO_init)GPIOHAL_init;
+  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].pinNumber = GPIO_PIN_7;
+  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].init = (GPIO_init)GPIOHAL_init;
 
-  gpios[1].errorStatus.bits.notInitialized = 1;
-  gpios[1].externalHandle = GPIOE;
-  gpios[1].pinNumber = GPIO_PIN_8;
-  gpios[1].mode = GPIO_OUTPUT_MODE;
-  gpios[1].init = (GPIO_init)GPIOHAL_init;
+  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].pinNumber = GPIO_PIN_8;
+  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].init = (GPIO_init)GPIOHAL_init;
 
-  gpios[2].errorStatus.bits.notInitialized = 1;
-  gpios[2].externalHandle = GPIOE;
-  gpios[2].pinNumber = GPIO_PIN_9;
-  gpios[2].mode = GPIO_OUTPUT_MODE;
-  gpios[2].init = (GPIO_init)GPIOHAL_init;
+  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].pinNumber = GPIO_PIN_9;
+  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].init = (GPIO_init)GPIOHAL_init;
 
-  gpios[3].errorStatus.bits.notInitialized = 1;
-  gpios[3].externalHandle = GPIOE;
-  gpios[3].pinNumber = GPIO_PIN_10;
-  gpios[3].mode = GPIO_OUTPUT_MODE;
-  gpios[3].init = (GPIO_init)GPIOHAL_init;
+  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].pinNumber = GPIO_PIN_10;
+  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].init = (GPIO_init)GPIOHAL_init;
 
 }
 
@@ -542,7 +542,7 @@ void setupTelecommunication(){
 }
 
 void setupButton(){
-  for(uint8_t i=0; i<4;i++)
+  for(uint8_t i=0; i<GS_CONTROL_BUTTON_AMOUNT;i++)
   {
     button[i].errorStatus.bits.notInitialized = 1;
     button[i].init = (Button_init)ButtonActiveLow_init;
