@@ -56,7 +56,7 @@ GPIO gpios[GS_CONTROL_GPIO_AMOUNT] = {0};
 UART uart                          = {0};
 volatile USB usb                   = {0};
 Telecommunication telecom          = {0};
-Button button[4]                   = {0};
+Button button[6]                   = {0};
 
 /* USER CODE END PV */
 
