@@ -497,31 +497,49 @@ static void MX_GPIO_Init(void)
 // These should only link HAL to instance and set base function pointers
 
 void setupGPIOs() {
-  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].pinNumber = GPIO_PIN_7;
-  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_BUTTON_1_INDEX].init = (GPIO_init)GPIOHAL_init;
+  // SAFE
+  gpios[GS_CONTROL_GPIO_SAFE_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_SAFE_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_SAFE_INDEX].pinNumber = GPIO_PIN_7;
+  gpios[GS_CONTROL_GPIO_SAFE_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_SAFE_INDEX].init = (GPIO_init)GPIOHAL_init;
 
-  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].pinNumber = GPIO_PIN_8;
-  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_BUTTON_2_INDEX].init = (GPIO_init)GPIOHAL_init;
+  // FIRE IGNITER
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].pinNumber = GPIO_PIN_8;
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].init = (GPIO_init)GPIOHAL_init;
 
-  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].pinNumber = GPIO_PIN_9;
-  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_BUTTON_3_INDEX].init = (GPIO_init)GPIOHAL_init;
+  // ENABLE FILL
+  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].pinNumber = GPIO_PIN_9;
+  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].init = (GPIO_init)GPIOHAL_init;
 
-  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].pinNumber = GPIO_PIN_10;
-  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_BUTTON_4_INDEX].init = (GPIO_init)GPIOHAL_init;
+  // BACKUP
+  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].pinNumber = GPIO_PIN_10;
+  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].init = (GPIO_init)GPIOHAL_init;
 
+  // IGNITER ARMED
+  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].pinNumber = GPIO_PIN_11;
+  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].init = (GPIO_init)GPIOHAL_init;
+
+  // ROCKET ARMED
+  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].pinNumber = GPIO_PIN_12;
+  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].init = (GPIO_init)GPIOHAL_init;
 }
+
 
 void setupUART() {
   uart.errorStatus.bits.notInitialized = 1;
