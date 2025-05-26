@@ -13,9 +13,17 @@
 
 #include "../sirius-embedded-common/Inc/Device/Telecommunication/Telecommunication.h"
 
+#include "../sirius-embedded-common/Inc/Device/Telecommunication/xbee.h"
+
+#include "../sirius-embedded-common/Inc/Device/Telecommunication/Databridge.h"
+
+
+
 #include "stm32f4xx_hal.h"
 
 #include "../sirius-embedded-common/Inc/Device/Button/ButtonActiveLow.h"
+
+
 
 #define FUNCTION_NULL_POINTER 0
 
@@ -28,7 +36,7 @@ typedef struct {
   GPIO*  gpios;
   UART*  uart;
   USB*   usb;
-
+  DataBridge* DataBridge;
   Telecommunication* telecom;
   Button* button;
 }

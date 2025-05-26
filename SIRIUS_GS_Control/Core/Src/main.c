@@ -57,6 +57,7 @@ UART uart                          = {0};
 volatile USB usb                   = {0};
 Telecommunication telecom          = {0};
 Button button[6]                   = {0};
+DataBridge databridge;
 
 /* USER CODE END PV */
 
@@ -124,6 +125,7 @@ int main(void)
   setupUART();
   setupUSB();
   setupButton();
+  setupDataBridge();
 
   // Setup Sensors/Devices
   setupTelecommunication();
@@ -162,6 +164,7 @@ int main(void)
 
     storage.fetchData(&storage, data);*/
     GSControl_tick(HAL_GetTick());
+
     uint8_t d[] = "+++";
     //HAL_UART_Transmit(&huart1, d, sizeof(d)-1, HAL_MAX_DELAY);
     uint8_t din[10];
@@ -556,7 +559,7 @@ void setupUSB() {
 
 void setupTelecommunication(){
   telecom.errorStatus.bits.notInitialized = 1;
-  telecom.init = (Telecommunication_init)TELECOM_init;
+  telecom.init = (Telecommunication_init)XBEE_init;
 }
 
 void setupButton(){
@@ -566,6 +569,16 @@ void setupButton(){
     button[i].init = (Button_init)ButtonActiveLow_init;
   }
 }
+
+void setupDataBridge(){
+  databridge.init = DATABRIDGE_init;
+  databridge.init(&databridge);
+
+  databridge.uart = &uart;
+  databridge.usb = &usb;
+  databridge.xbee = &telecom;
+}
+
 
 /* USER CODE END 4 */
 

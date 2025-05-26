@@ -64,7 +64,9 @@ void GSControl_execute(uint32_t timestamp_ms) {
 void executeInit(uint32_t timestamp_ms) {
   gsControl.currentState = GS_CONTROL_STATE_IDLE;
 
-  gsControl.telecom->setupTelecom((struct Telecommunication*) gsControl.telecom);
+  XBEE_config(&gsControl.telecom);
+
+  gsControl.telecom->config((struct Telecommunication*) gsControl.telecom);
 }
 
 void executeIdle(uint32_t timestamp_ms) {
@@ -75,10 +77,10 @@ void executeIdle(uint32_t timestamp_ms) {
     gsControl.usb->transmit((struct USB*)gsControl.usb, data, sizeof(data));
   }
 
-  if (gsControl.usb->status.bits.rxDataReady == 1) {
-    uint8_t* test = gsControl.usb->rxBuffer;
-    gsControl.usb->status.bits.rxDataReady = 0;
-  }
+
+   gsControl.DataBridge->receiveUART(gsControl.DataBridge);
+
+
   // Wait for arming command, collect data
   /*if(HAL_GetTick() - previous2 >= 500){
     previous2 = HAL_GetTick();
@@ -115,7 +117,7 @@ void initUART() {
     return;
   }
 
-  gsControl.uart->init(gsControl.uart);
+  gsControl.uart->init((struct UART*)gsControl.uart);
 }
 
 void initUSB() {
