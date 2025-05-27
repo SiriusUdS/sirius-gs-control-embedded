@@ -75,6 +75,7 @@ static void setupUART();
 static void setupUSB();
 static void setupTelecommunication();
 static void setupButton();
+static void setupDataBridge();
 
 /* USER CODE END PFP */
 
@@ -125,12 +126,14 @@ int main(void)
   setupUART();
   setupUSB();
   setupButton();
-  setupDataBridge();
 
   // Setup Sensors/Devices
   setupTelecommunication();
+
+  setupDataBridge();
+
   
-  GSControl_init(gpios, &uart, &usb, &telecom, &button);
+  GSControl_init(gpios, &uart, &usb, &telecom, &button, &databridge);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -168,8 +171,7 @@ int main(void)
     uint8_t d[] = "+++";
     //HAL_UART_Transmit(&huart1, d, sizeof(d)-1, HAL_MAX_DELAY);
     uint8_t din[10];
-    uint32_t in = 0;
-    /*while(1){
+     /*while(1){
       HAL_UART_Receive(&huart1, din, 10, HAL_MAX_DELAY);
       if(din[0] == 'O'){
         break;
@@ -543,6 +545,13 @@ void setupGPIOs() {
   gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].init = (GPIO_init)GPIOHAL_init;
 }
 
+void setupDataBridge(){
+  databridge.init = DATABRIDGE_init;
+
+  databridge.uart = &uart;
+  databridge.usb = &usb;
+  databridge.xbee = &telecom;
+}
 
 void setupUART() {
   uart.errorStatus.bits.notInitialized = 1;
@@ -568,15 +577,6 @@ void setupButton(){
     button[i].errorStatus.bits.notInitialized = 1;
     button[i].init = (Button_init)ButtonActiveLow_init;
   }
-}
-
-void setupDataBridge(){
-  databridge.init = DATABRIDGE_init;
-  databridge.init(&databridge);
-
-  databridge.uart = &uart;
-  databridge.usb = &usb;
-  databridge.xbee = &telecom;
 }
 
 

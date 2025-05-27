@@ -42,7 +42,7 @@ typedef struct {
 }
 GSControl;
 
-extern void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* button);
+extern void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* button, DataBridge* databridge);
 
 extern void GSControl_tick(uint32_t timestamp_ms);
 

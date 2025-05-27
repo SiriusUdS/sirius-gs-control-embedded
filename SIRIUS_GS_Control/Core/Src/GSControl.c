@@ -17,7 +17,9 @@ static void initButton();
 
 static void initTelecom();
 
-void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* button) {
+static void initDatabridge();
+
+void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* button, DataBridge* databridge) {
   gsControl.errorStatus.value  = 0;
   gsControl.status.value       = 0;
   gsControl.currentState       = GS_CONTROL_STATE_INIT;
@@ -28,6 +30,8 @@ void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* teleco
 
   gsControl.telecom = telecom;
   gsControl.button = button;
+  gsControl.DataBridge = databridge;
+
 
   initTelecom();
 
@@ -35,6 +39,8 @@ void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* teleco
   initUART();
   initUSB();
   initButton();
+  initDatabridge();
+
 }
 
 void GSControl_tick(uint32_t timestamp_ms) {
@@ -99,6 +105,28 @@ void executeIdle(uint32_t timestamp_ms) {
 void executeAbort(uint32_t timestamp_ms) {
   // Check flowcharts for wtf to do
 }
+
+void initDatabridge() {
+    if (gsControl.DataBridge == NULL) {
+        gsControl.errorStatus.bits.notInitialized = 1;
+        return;
+    }
+
+    gsControl.DataBridge->usb  = gsControl.usb;
+    gsControl.DataBridge->uart = gsControl.uart;
+    gsControl.DataBridge->xbee = gsControl.telecom;
+
+    if (gsControl.DataBridge->init == FUNCTION_NULL_POINTER) {
+        gsControl.errorStatus.bits.notInitialized = 1;  
+        return;
+    }
+
+    gsControl.DataBridge->init(gsControl.DataBridge);
+    
+}
+
+
+
 
 void initGPIOs() {
   for (uint8_t i = 0; i < GS_CONTROL_GPIO_AMOUNT; i++) {
