@@ -1106,6 +1106,9 @@
           <file>
             <name>$PROJ_DIR$/../FATFS/Target/sd_diskio.c</name>
           </file>
+          <file>
+            <name>$PROJ_DIR$/../FATFS/Target/fatfs_platform.c</name>
+          </file>
         </group>
         <group>
           <name>App</name>
@@ -1188,6 +1191,9 @@
       </file>
       <file>
         <name>$PROJ_DIR$/../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$/../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_crc.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$/../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_sdmmc.c</name>

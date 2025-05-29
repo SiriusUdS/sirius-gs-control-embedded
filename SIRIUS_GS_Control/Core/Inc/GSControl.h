@@ -15,15 +15,12 @@
 
 #include "../sirius-embedded-common/Inc/Device/Telecommunication/xbee.h"
 
-#include "../sirius-embedded-common/Inc/Device/Telecommunication/Databridge.h"
-
-
+#include "Databridge.h"
 
 #include "stm32f4xx_hal.h"
 
 #include "../sirius-embedded-common/Inc/Device/Button/ButtonActiveLow.h"
-
-
+#include "../sirius-embedded-common/Inc/Device/Button/ButtonActiveHigh.h"
 
 #define FUNCTION_NULL_POINTER 0
 
@@ -38,11 +35,11 @@ typedef struct {
   USB*   usb;
   DataBridge* DataBridge;
   Telecommunication* telecom;
-  Button* button;
+  Button* buttons;
 }
 GSControl;
 
-extern void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* button, DataBridge* databridge);
+extern void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* buttons, DataBridge* databridge);
 
 extern void GSControl_tick(uint32_t timestamp_ms);
 

@@ -43,7 +43,11 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+CRC_HandleTypeDef hcrc;
+
 SD_HandleTypeDef hsd;
+DMA_HandleTypeDef hdma_sdio_rx;
+DMA_HandleTypeDef hdma_sdio_tx;
 
 SPI_HandleTypeDef hspi2;
 
@@ -56,7 +60,7 @@ GPIO gpios[GS_CONTROL_GPIO_AMOUNT] = {0};
 UART uart                          = {0};
 volatile USB usb                   = {0};
 Telecommunication telecom          = {0};
-Button button[6]                   = {0};
+Button buttons[GS_CONTROL_BUTTON_AMOUNT] = {0};
 DataBridge databridge;
 
 /* USER CODE END PV */
@@ -64,10 +68,12 @@ DataBridge databridge;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_SDIO_SD_Init(void);
 static void MX_SPI2_Init(void);
+static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void setupGPIOs();
@@ -113,12 +119,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_TIM4_Init();
   MX_USB_DEVICE_Init();
   MX_SDIO_SD_Init();
   MX_SPI2_Init();
   MX_FATFS_Init();
+  MX_CRC_Init();
   /* USER CODE BEGIN 2 */
 
   // Setup Peripherals
@@ -129,73 +137,17 @@ int main(void)
 
   // Setup Sensors/Devices
   setupTelecommunication();
-
-  setupDataBridge();
-
+  //setupDataBridge();
   
-  GSControl_init(gpios, &uart, &usb, &telecom, &button, &databridge);
+  GSControl_init(gpios, &uart, &usb, &telecom, &buttons, &databridge);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  /*Storage storage = {
-    .fetchData = SDCard_fetch4kbData,
-    .storePage = SDCard_store4kbData,
-    .init = SDCard_init,
-    .externalInstance = (void*)&SDFatFS,
-  };*/
-
-  /*uint8_t data[4096/8] = {0};
-  data[0] = 1;
-  data[1] = 2;
-  data[2] = 3;
-  data[3] = 4;*/
 
   while (1)
   { 
-    //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
-    /*data[0] = 1;
-    data[1] = 2;
-    data[2] = 3;
-    data[3] = 4;
-    storage.storePage(&storage, data);
-
-    data[0] = 0;
-    data[1] = 0;
-    data[2] = 0;
-    data[3] = 0;
-
-    storage.fetchData(&storage, data);*/
     GSControl_tick(HAL_GetTick());
-
-    uint8_t d[] = "+++";
-    //HAL_UART_Transmit(&huart1, d, sizeof(d)-1, HAL_MAX_DELAY);
-    uint8_t din[10];
-     /*while(1){
-      HAL_UART_Receive(&huart1, din, 10, HAL_MAX_DELAY);
-      if(din[0] == 'O'){
-        break;
-      }
-
-      in++;
-
-    }*/
-    //HAL_Delay(100);
-    // E_MATCH
-    /*HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_SET);
-    HAL_Delay(1000);
-    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);
-    HAL_Delay(1000);*/
-
-    // HEATPAD
-    //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_SET);
-    //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_SET);
-    /*HAL_Delay(750);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_RESET);
-    HAL_Delay(250);*/
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -225,9 +177,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 144;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
-  RCC_OscInitStruct.PLL.PLLQ = 6;
+  RCC_OscInitStruct.PLL.PLLN = 96;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -242,10 +194,36 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief CRC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CRC_Init(void)
+{
+
+  /* USER CODE BEGIN CRC_Init 0 */
+
+  /* USER CODE END CRC_Init 0 */
+
+  /* USER CODE BEGIN CRC_Init 1 */
+
+  /* USER CODE END CRC_Init 1 */
+  hcrc.Instance = CRC;
+  if (HAL_CRC_Init(&hcrc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CRC_Init 2 */
+
+  /* USER CODE END CRC_Init 2 */
+
 }
 
 /**
@@ -267,9 +245,9 @@ static void MX_SDIO_SD_Init(void)
   hsd.Init.ClockEdge = SDIO_CLOCK_EDGE_RISING;
   hsd.Init.ClockBypass = SDIO_CLOCK_BYPASS_DISABLE;
   hsd.Init.ClockPowerSave = SDIO_CLOCK_POWER_SAVE_DISABLE;
-  hsd.Init.BusWide = SDIO_BUS_WIDE_1B;
-  hsd.Init.HardwareFlowControl = SDIO_HARDWARE_FLOW_CONTROL_DISABLE;
-  hsd.Init.ClockDiv = 0;
+  hsd.Init.BusWide = SDIO_BUS_WIDE_4B;
+  hsd.Init.HardwareFlowControl = SDIO_HARDWARE_FLOW_CONTROL_ENABLE;
+  hsd.Init.ClockDiv = 2;
   /* USER CODE BEGIN SDIO_Init 2 */
 
   /* USER CODE END SDIO_Init 2 */
@@ -415,6 +393,25 @@ static void MX_USART1_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
+  /* DMA2_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream6_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -442,35 +439,19 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, GPIO_OUTPUT_EMATCH_1_Pin|GPIO_OUTPUT_EMATCH_2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : GPIO_INPUT_EMATCH_INDICATOR_2_Pin GPIO_INPUT_EMATCH_INDICATOR_1_Pin GPIO_INPUT_NOS_VALVE_SWITCH_CLOSED_Pin GPIO_INPUT_NOS_VALVE_SWITCH_OPENED_Pin
-                           GPIO_INPUT_IPA_VALVE_SWITCH_CLOSED_Pin GPIO_INPUT_IPA_VALVE_SWITCH_OPENED_Pin */
-  GPIO_InitStruct.Pin = GPIO_INPUT_EMATCH_INDICATOR_2_Pin|GPIO_INPUT_EMATCH_INDICATOR_1_Pin|GPIO_INPUT_NOS_VALVE_SWITCH_CLOSED_Pin|GPIO_INPUT_NOS_VALVE_SWITCH_OPENED_Pin
-                          |GPIO_INPUT_IPA_VALVE_SWITCH_CLOSED_Pin|GPIO_INPUT_IPA_VALVE_SWITCH_OPENED_Pin;
+  /*Configure GPIO pins : GPIO_INPUT_EMATCH_INDICATOR_2_Pin GPIO_INPUT_EMATCH_INDICATOR_1_Pin */
+  GPIO_InitStruct.Pin = GPIO_INPUT_EMATCH_INDICATOR_2_Pin|GPIO_INPUT_EMATCH_INDICATOR_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ADC_PRESSURE_SENSOR_TANK_Pin ADC_PRESSURE_SENSOR_COMBUSTION_CHAMBER_Pin ADC_BATTERY_TENSION_Pin ADC_UNUSED_3_Pin
-                           ADC_UNUSED_LOAD_SENSOR_1_Pin ADC_UNUSED_LOAD_SENSOR_2_Pin */
-  GPIO_InitStruct.Pin = ADC_PRESSURE_SENSOR_TANK_Pin|ADC_PRESSURE_SENSOR_COMBUSTION_CHAMBER_Pin|ADC_BATTERY_TENSION_Pin|ADC_UNUSED_3_Pin
-                          |ADC_UNUSED_LOAD_SENSOR_1_Pin|ADC_UNUSED_LOAD_SENSOR_2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : ADC_TEMPERATURE_SENSOR_1_Pin ADC_TEMPERATURE_SENSOR_2_Pin ADC_TEMPERATURE_SENSOR_3_Pin ADC_TEMPERATURE_SENSOR_4_Pin
-                           ADC_TEMPERATURE_SENSOR_5_Pin ADC_TEMPERATURE_SENSOR_6_Pin ADC_TEMPERATURE_SENSOR_7_Pin ADC_TEMPERATURE_SENSOR_8_Pin */
-  GPIO_InitStruct.Pin = ADC_TEMPERATURE_SENSOR_1_Pin|ADC_TEMPERATURE_SENSOR_2_Pin|ADC_TEMPERATURE_SENSOR_3_Pin|ADC_TEMPERATURE_SENSOR_4_Pin
-                          |ADC_TEMPERATURE_SENSOR_5_Pin|ADC_TEMPERATURE_SENSOR_6_Pin|ADC_TEMPERATURE_SENSOR_7_Pin|ADC_TEMPERATURE_SENSOR_8_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  /*Configure GPIO pins : GPIO_INPUT_SWITCH_ALLOW_FILL_Pin GPIO_INPUT_SWITCH_ARM_SERVO_Pin GPIO_INPUT_SWITCH_ARM_IGNITER_Pin GPIO_INPUT_SWITCH_UNUSED_Pin
+                           GPIO_INPUT_BUTTON_EMERGENCY_STOP_Pin GPIO_INPUT_BUTTON_FIRE_IGNITER_Pin GPIO_INPUT_KEY_SWITCH_UNSAFE_Pin */
+  GPIO_InitStruct.Pin = GPIO_INPUT_SWITCH_ALLOW_FILL_Pin|GPIO_INPUT_SWITCH_ARM_SERVO_Pin|GPIO_INPUT_SWITCH_ARM_IGNITER_Pin|GPIO_INPUT_SWITCH_UNUSED_Pin
+                          |GPIO_INPUT_BUTTON_EMERGENCY_STOP_Pin|GPIO_INPUT_BUTTON_FIRE_IGNITER_Pin|GPIO_INPUT_KEY_SWITCH_UNSAFE_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : ADC_UNUSED_1_Pin ADC_UNUSED_2_Pin */
-  GPIO_InitStruct.Pin = ADC_UNUSED_1_Pin|ADC_UNUSED_2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : GPIO_OUTPUT_EXT_FLASH_HOLD_Pin GPIO_OUTPUT_EXT_FLASH_WP_Pin */
   GPIO_InitStruct.Pin = GPIO_OUTPUT_EXT_FLASH_HOLD_Pin|GPIO_OUTPUT_EXT_FLASH_WP_Pin;
@@ -478,6 +459,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : SD_CARD_DETECT_PD_Pin */
+  GPIO_InitStruct.Pin = SD_CARD_DETECT_PD_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(SD_CARD_DETECT_PD_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : GPIO_OUTPUT_HEATPAD_1_Pin GPIO_OUTPUT_HEATPAD_2_Pin */
   GPIO_InitStruct.Pin = GPIO_OUTPUT_HEATPAD_1_Pin|GPIO_OUTPUT_HEATPAD_2_Pin;
@@ -502,56 +489,56 @@ static void MX_GPIO_Init(void)
 // These should only link HAL to instance and set base function pointers
 
 void setupGPIOs() {
-  // SAFE
-  gpios[GS_CONTROL_GPIO_SAFE_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_SAFE_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_SAFE_INDEX].pinNumber = GPIO_PIN_7;
-  gpios[GS_CONTROL_GPIO_SAFE_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_SAFE_INDEX].init = (GPIO_init)GPIOHAL_init;
+  gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].externalHandle = GPIOA;
+  gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].pinNumber = GPIO_PIN_0;
+  gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].mode = GPIO_INPUT_MODE;
+  gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].init = (GPIO_init)GPIOHAL_init;
 
-  // FIRE IGNITER
+  gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].externalHandle = GPIOA;
+  gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].pinNumber = GPIO_PIN_1;
+  gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].mode = GPIO_INPUT_MODE;
+  gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].init = (GPIO_init)GPIOHAL_init;
+
+  gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].externalHandle = GPIOA;
+  gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].pinNumber = GPIO_PIN_2;
+  gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].mode = GPIO_INPUT_MODE;
+  gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].init = (GPIO_init)GPIOHAL_init;
+
+  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].externalHandle = GPIOA;
+  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].pinNumber = GPIO_PIN_3;
+  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].mode = GPIO_INPUT_MODE;
+  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].init = (GPIO_init)GPIOHAL_init;
+
+  gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].externalHandle = GPIOA;
+  gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].pinNumber = GPIO_PIN_4;
+  gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].mode = GPIO_INPUT_MODE;
+  gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].init = (GPIO_init)GPIOHAL_init;
+
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].pinNumber = GPIO_PIN_8;
-  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].mode = GPIO_OUTPUT_MODE;
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].externalHandle = GPIOA;
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].pinNumber = GPIO_PIN_5;
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].init = (GPIO_init)GPIOHAL_init;
 
-  // ENABLE FILL
-  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].pinNumber = GPIO_PIN_9;
-  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_ENABLE_FILL_INDEX].init = (GPIO_init)GPIOHAL_init;
-
-  // BACKUP
-  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].pinNumber = GPIO_PIN_10;
-  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_BACKUP_INDEX].init = (GPIO_init)GPIOHAL_init;
-
-  // IGNITER ARMED
-  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].pinNumber = GPIO_PIN_11;
-  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_IGNITER_ARMED_INDEX].init = (GPIO_init)GPIOHAL_init;
-
-  // ROCKET ARMED
-  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].pinNumber = GPIO_PIN_12;
-  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].mode = GPIO_OUTPUT_MODE;
-  gpios[GS_CONTROL_GPIO_ROCKET_ARMED_INDEX].init = (GPIO_init)GPIOHAL_init;
+  gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].externalHandle = GPIOA;
+  gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].pinNumber = GPIO_PIN_6;
+  gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].mode = GPIO_INPUT_MODE;
+  gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].init = (GPIO_init)GPIOHAL_init;
 }
 
-void setupDataBridge(){
+/*void setupDataBridge(){
   databridge.init = DATABRIDGE_init;
 
   databridge.uart = &uart;
   databridge.usb = &usb;
   databridge.xbee = &telecom;
-}
+}*/
 
 void setupUART() {
   uart.errorStatus.bits.notInitialized = 1;
@@ -572,10 +559,10 @@ void setupTelecommunication(){
 }
 
 void setupButton(){
-  for(uint8_t i=0; i<GS_CONTROL_BUTTON_AMOUNT;i++)
+  for(uint8_t i = 0; i < GS_CONTROL_BUTTON_AMOUNT; i++)
   {
-    button[i].errorStatus.bits.notInitialized = 1;
-    button[i].init = (Button_init)ButtonActiveLow_init;
+    buttons[i].errorStatus.bits.notInitialized = 1;
+    buttons[i].init = (Button_init)ButtonActiveHigh_init;
   }
 }
 

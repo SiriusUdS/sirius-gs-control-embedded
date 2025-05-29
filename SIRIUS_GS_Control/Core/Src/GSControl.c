@@ -19,7 +19,9 @@ static void initTelecom();
 
 static void initDatabridge();
 
-void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* button, DataBridge* databridge) {
+static void updateButtonStates();
+
+void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* buttons, DataBridge* databridge) {
   gsControl.errorStatus.value  = 0;
   gsControl.status.value       = 0;
   gsControl.currentState       = GS_CONTROL_STATE_INIT;
@@ -29,7 +31,7 @@ void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* teleco
   gsControl.usb    = usb;
 
   gsControl.telecom = telecom;
-  gsControl.button = button;
+  gsControl.buttons = buttons;
   gsControl.DataBridge = databridge;
 
 
@@ -39,12 +41,17 @@ void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* teleco
   initUART();
   initUSB();
   initButton();
-  initDatabridge();
+  //initDatabridge();
 
 }
 
 void GSControl_tick(uint32_t timestamp_ms) {
-  gsControl.button->tick(gsControl.button, timestamp_ms);
+  for (uint8_t i = 0; i < GS_CONTROL_BUTTON_AMOUNT;i++) {
+    gsControl.buttons[i].tick((struct Button*)&gsControl.buttons[i], timestamp_ms);
+  }
+  updateButtonStates();
+  
+  
   GSControl_execute(timestamp_ms);
 }
 
@@ -70,43 +77,56 @@ void GSControl_execute(uint32_t timestamp_ms) {
 void executeInit(uint32_t timestamp_ms) {
   gsControl.currentState = GS_CONTROL_STATE_IDLE;
 
-  XBEE_config(&gsControl.telecom);
+  XBEE_config((struct Telecommunication*)&gsControl.telecom);
 
   gsControl.telecom->config((struct Telecommunication*) gsControl.telecom);
 }
 
 void executeIdle(uint32_t timestamp_ms) {
-  uint8_t data[] = "FUCK TRUMP!";
-
   if (HAL_GetTick() - previous >= 100) {
     previous = HAL_GetTick();
-    gsControl.usb->transmit((struct USB*)gsControl.usb, data, sizeof(data));
+    //gsControl.usb->transmit((struct USB*)gsControl.usb, data, sizeof(data));
   }
 
 
-   gsControl.DataBridge->receiveUART(gsControl.DataBridge);
-
-
-  // Wait for arming command, collect data
-  /*if(HAL_GetTick() - previous2 >= 500){
-    previous2 = HAL_GetTick();
-
-    engine.telecom->sendData((struct Telecommunication*)engine.telecom, data, sizeof(data)-1);
-  }*/
-  /*engine.valves[ENGINE_IPA_VALVE_INDEX].open((struct Valve*)&engine.valves[ENGINE_IPA_VALVE_INDEX], timestamp_ms);
-  HAL_Delay(1000);
-  engine.valves[ENGINE_IPA_VALVE_INDEX].setIdle((struct Valve*)&engine.valves[ENGINE_IPA_VALVE_INDEX]);
-  engine.valves[ENGINE_IPA_VALVE_INDEX].close((struct Valve*)&engine.valves[ENGINE_IPA_VALVE_INDEX], timestamp_ms);
-  HAL_Delay(1000);
-  engine.valves[ENGINE_IPA_VALVE_INDEX].setIdle((struct Valve*)&engine.valves[ENGINE_IPA_VALVE_INDEX]);*/
-  
+   //gsControl.DataBridge->receiveUART(gsControl.DataBridge);
 }
 
 void executeAbort(uint32_t timestamp_ms) {
   // Check flowcharts for wtf to do
 }
 
-void initDatabridge() {
+void updateButtonStates() {
+  if (gsControl.buttons[GS_CONTROL_BUTTON_EMERGENCY_STOP_INDEX].status.bits.isPressed) {
+    gsControl.status.bits.isEmergencyStopButtonPressed = 1;
+  }
+
+  if (gsControl.buttons[GS_CONTROL_BUTTON_UNSAFE_INDEX].status.bits.isPressed) {
+    gsControl.status.bits.isUnsafeKeySwitchPressed = 1;
+  }
+
+  if (gsControl.buttons[GS_CONTROL_BUTTON_ALLOW_FILL_INDEX].status.bits.isPressed) {
+    gsControl.status.bits.isAllowFillSwitchOn = 1;
+  }
+
+  if (gsControl.buttons[GS_CONTROL_BUTTON_ARM_IGNITER_INDEX].status.bits.isPressed) {
+    gsControl.status.bits.isArmIgniterSwitchOn = 1;
+  }
+
+  if (gsControl.buttons[GS_CONTROL_BUTTON_ARM_VALVE_INDEX].status.bits.isPressed) {
+    gsControl.status.bits.isArmServoSwitchOn = 1;
+  }
+
+  if (gsControl.buttons[GS_CONTROL_BUTTON_FIRE_IGNITER_INDEX].status.bits.isPressed) {
+    gsControl.status.bits.isFireIgniterButtonPressed = 1;
+  }
+
+  if (gsControl.buttons[GS_CONTROL_BUTTON_UNUSED_INDEX].status.bits.isPressed) {
+    gsControl.status.bits.isUnusedSwitchOn = 1;
+  }
+}
+
+/*void initDatabridge() {
     if (gsControl.DataBridge == NULL) {
         gsControl.errorStatus.bits.notInitialized = 1;
         return;
@@ -121,12 +141,8 @@ void initDatabridge() {
         return;
     }
 
-    gsControl.DataBridge->init(gsControl.DataBridge);
-    
-}
-
-
-
+    //gsControl.DataBridge->init(gsControl.DataBridge);
+}*/
 
 void initGPIOs() {
   for (uint8_t i = 0; i < GS_CONTROL_GPIO_AMOUNT; i++) {
@@ -168,14 +184,16 @@ void initTelecom(){
 }
 
 void initButton(){
-  for (uint8_t i = 0; i < GS_CONTROL_GPIO_AMOUNT; i++) {
-    if (gsControl.button[i].init == FUNCTION_NULL_POINTER) {
-      gsControl.button[i].errorStatus.bits.nullFunctionPointer = 1;
+  for (uint8_t i = 0; i < GS_CONTROL_BUTTON_AMOUNT; i++) {
+    if (gsControl.buttons[i].init == FUNCTION_NULL_POINTER) {
+      gsControl.buttons[i].errorStatus.bits.nullFunctionPointer = 1;
       continue;
     }
 
-    gsControl.button[i].init((struct Button*)gsControl.button);
-    gsControl.button[i].gpio = &gsControl.gpios[i];
+    gsControl.buttons[i].debounceTargetReadCount = 15;
+    gsControl.buttons[i].delayBetweenReads_ms = 4;
+    gsControl.buttons[i].init((struct Button*)&gsControl.buttons[i]);
+    gsControl.buttons[i].gpio = &gsControl.gpios[i];
   }
   return;
 }
