@@ -1,10 +1,17 @@
 #include "../Inc/GSControl.h"
 
-static volatile GSControl gsControl;
+static GSControl gsControl = {0};
 
-uint32_t previous;
-uint32_t previous2;
-uint16_t testValueThermistance = 0;
+BoardCommand currentBoardCommand = {0};
+CommandResponse currentResponse = {0};
+GSCommand currentGSCommand = {0};
+
+EngineTelemetryPacket currentEngineTelemetryPacket = {0};
+EngineStatusPacket currentEngineStatusPacket = {0};
+FillingStationTelemetryPacket currentFillingStationTelemetryPacket = {0};
+FillingStationStatusPacket currentFillingStationStatusPacket = {0};
+
+uint8_t uartBuffer[UART_BUFFER_SIZE] = {0};
 
 static void executeInit(uint32_t timestamp_ms);
 static void executeIdle(uint32_t timestamp_ms);
@@ -13,15 +20,25 @@ static void executeAbort(uint32_t timestamp_ms);
 static void initGPIOs();
 static void initUART();
 static void initUSB();
-static void initButton();
 
+static void initButton();
 static void initTelecom();
 
-static void initDatabridge();
-
 static void updateButtonStates();
+static void parseUartPacket();
+static void parseUsbPacket();
 
-void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* buttons, DataBridge* databridge) {
+static void parseCommandResponsePacket();
+static void parseBoardCommandPacket();
+static void parseTelemetryPacket(uint32_t headerValue);
+static void parseStatusPacket(uint32_t headerValue);
+
+static void parseEngineTelemetryPacket();
+static void parseEngineStatusPacket();
+static void parseFillingStationTelemetryPacket();
+static void parseFillingStationStatusPacket();
+
+void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunication* telecom, Button* buttons) {
   gsControl.errorStatus.value  = 0;
   gsControl.status.value       = 0;
   gsControl.currentState       = GS_CONTROL_STATE_INIT;
@@ -30,10 +47,8 @@ void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* teleco
   gsControl.uart   = uart;
   gsControl.usb    = usb;
 
-  gsControl.telecom = telecom;
+  gsControl.telecommunication = telecom;
   gsControl.buttons = buttons;
-  gsControl.DataBridge = databridge;
-
 
   initTelecom();
 
@@ -41,8 +56,6 @@ void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* teleco
   initUART();
   initUSB();
   initButton();
-  //initDatabridge();
-
 }
 
 void GSControl_tick(uint32_t timestamp_ms) {
@@ -50,6 +63,14 @@ void GSControl_tick(uint32_t timestamp_ms) {
     gsControl.buttons[i].tick((struct Button*)&gsControl.buttons[i], timestamp_ms);
   }
   updateButtonStates();
+
+  gsControl.telecommunication->receiveData((struct Telecommunication*)gsControl.telecommunication, uartBuffer, UART_BUFFER_SIZE);
+  parseUartPacket();
+
+  if (gsControl.usb->status.bits.rxDataReady) {
+    parseUsbPacket();
+    gsControl.usb->status.bits.rxDataReady = 0;
+  }
   
   GSControl_execute(timestamp_ms);
 }
@@ -76,23 +97,15 @@ void GSControl_execute(uint32_t timestamp_ms) {
 void executeInit(uint32_t timestamp_ms) {
   gsControl.currentState = GS_CONTROL_STATE_IDLE;
 
-  XBEE_config((struct Telecommunication*)&gsControl.telecom);
-
-  gsControl.telecom->config((struct Telecommunication*) gsControl.telecom);
+  gsControl.telecommunication->config((struct Telecommunication*) gsControl.telecommunication);
 }
 
 void executeIdle(uint32_t timestamp_ms) {
-  if (HAL_GetTick() - previous >= 100) {
-    previous = HAL_GetTick();
-    //gsControl.usb->transmit((struct USB*)gsControl.usb, data, sizeof(data));
-  }
-
-
-   //gsControl.DataBridge->receiveUART(gsControl.DataBridge);
+  // INTERPRET COMMAND THEN SEND OR NO
 }
 
 void executeAbort(uint32_t timestamp_ms) {
-  // Check flowcharts for wtf to do
+  // INTERPRET COMMAND THEN SEND OR NO
 }
 
 void updateButtonStates() {
@@ -146,23 +159,105 @@ void updateButtonStates() {
   }
 }
 
-/*void initDatabridge() {
-    if (gsControl.DataBridge == NULL) {
-        gsControl.errorStatus.bits.notInitialized = 1;
-        return;
-    }
+void parseUartPacket() {
+  uint32_t packetHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
+  uint32_t type = packetHeader & 0xFFFFF000UL;
 
-    gsControl.DataBridge->usb  = gsControl.usb;
-    gsControl.DataBridge->uart = gsControl.uart;
-    gsControl.DataBridge->xbee = gsControl.telecom;
+  switch (type)
+  {
+    case COMMAND_RESPONSE_TYPE_CODE:
+      parseCommandResponsePacket();
+      break;
+    case TELEMETRY_TYPE_CODE:
+      parseTelemetryPacket(packetHeader);
+      break;
+    case STATUS_TYPE_CODE:
+      parseStatusPacket(packetHeader);
+      break;
+    default:
+      // RAISE ERROR FLAG
+      break;
+  }
+}
 
-    if (gsControl.DataBridge->init == FUNCTION_NULL_POINTER) {
-        gsControl.errorStatus.bits.notInitialized = 1;  
-        return;
-    }
+void parseUsbPacket() {
+  uint32_t packetHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
+  uint32_t type = packetHeader & 0xFFFFF000UL;
+  
+  if (type == BOARD_COMMAND_TYPE_CODE) {
+    parseBoardCommandPacket();
+  }
+}
 
-    //gsControl.DataBridge->init(gsControl.DataBridge);
-}*/
+void parseCommandResponsePacket() {
+  // Check CRC
+  for (uint8_t i = 0; i < sizeof(CommandResponse); i++) {
+    currentResponse.data[i] = uartBuffer[i];
+  }
+}
+
+void parseBoardCommandPacket() {
+  // Check CRC
+  for (uint8_t i = 0; i < sizeof(BoardCommand); i++) {
+    currentBoardCommand.data[i] = gsControl.usb->rxBuffer[i];
+  }
+}
+
+void parseTelemetryPacket(uint32_t headerValue) {
+  switch (headerValue & 0x000000D0UL) {
+    case TELEMETRY_ENGINE_BOARD_ID:
+      parseEngineTelemetryPacket();
+      break;
+    case TELEMETRY_FILLING_STATION_BOARD_ID:
+      parseFillingStationTelemetryPacket();
+      break;
+    default:
+      // UNKNOWN BOARD, RAISE ERROR FLAG
+      break;
+  }
+}
+
+void parseStatusPacket(uint32_t headerValue) {
+  switch (headerValue & 0x000000D0UL) {
+    case TELEMETRY_ENGINE_BOARD_ID:
+      parseEngineStatusPacket();
+      break;
+    case TELEMETRY_FILLING_STATION_BOARD_ID:
+      parseFillingStationStatusPacket();
+      break;
+    default:
+      // UNKNOWN BOARD, RAISE ERROR FLAG
+      break;
+  }
+}
+
+void parseEngineTelemetryPacket() {
+  // Check CRC
+  for (uint8_t i = 0; i < sizeof(EngineTelemetryPacket); i++) {
+    currentEngineTelemetryPacket.data[i] = uartBuffer[i];
+  }
+}
+
+void parseEngineStatusPacket() {
+  // Check CRC
+  for (uint8_t i = 0; i < sizeof(EngineStatusPacket); i++) {
+    currentEngineStatusPacket.data[i] = uartBuffer[i];
+  }
+}
+
+void parseFillingStationTelemetryPacket() {
+  // Check CRC
+  for (uint8_t i = 0; i < sizeof(FillingStationTelemetryPacket); i++) {
+    currentFillingStationTelemetryPacket.data[i] = uartBuffer[i];
+  }
+}
+
+void parseFillingStationStatusPacket() {
+  // Check CRC
+  for (uint8_t i = 0; i < sizeof(FillingStationTelemetryPacket); i++) {
+    currentFillingStationStatusPacket.data[i] = uartBuffer[i];
+  }
+}
 
 void initGPIOs() {
   for (uint8_t i = 0; i < GS_CONTROL_GPIO_AMOUNT; i++) {
@@ -194,13 +289,13 @@ void initUSB() {
 }
 
 void initTelecom(){
-  if(gsControl.telecom->init == FUNCTION_NULL_POINTER){
-    gsControl.telecom->errorStatus.bits.nullFunctionPointer = 1;
+  if(gsControl.telecommunication->init == FUNCTION_NULL_POINTER){
+    gsControl.telecommunication->errorStatus.bits.nullFunctionPointer = 1;
     return;
   }
 
-  gsControl.telecom->init((struct Telecommunication*)gsControl.telecom);
-  gsControl.telecom->uart = gsControl.uart;
+  gsControl.telecommunication->uart = gsControl.uart;
+  gsControl.telecommunication->init((struct Telecommunication*)gsControl.telecommunication);
 }
 
 void initButton(){

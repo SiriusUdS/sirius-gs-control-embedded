@@ -59,7 +59,6 @@ UART uart                          = {0};
 volatile USB usb                   = {0};
 Telecommunication telecom          = {0};
 Button buttons[GS_CONTROL_BUTTON_AMOUNT] = {0};
-DataBridge databridge;
 
 /* USER CODE END PV */
 
@@ -119,9 +118,9 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
-  //MX_SDIO_SD_Init();
+  MX_SDIO_SD_Init();
   MX_SPI2_Init();
-  //MX_FATFS_Init();
+  MX_FATFS_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
 
@@ -133,9 +132,8 @@ int main(void)
 
   // Setup Sensors/Devices
   setupTelecommunication();
-  //setupDataBridge();
   
-  GSControl_init(gpios, &uart, &usb, &telecom, &buttons, &databridge);
+  GSControl_init(gpios, &uart, &usb, &telecom, &buttons);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -144,7 +142,6 @@ int main(void)
   while (1)
   { 
     GSControl_tick(HAL_GetTick());
-    uint8_t test = HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_8);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -441,14 +438,6 @@ void setupGPIOs() {
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].init = (GPIO_init)GPIOHAL_init;
 }
-
-/*void setupDataBridge(){
-  databridge.init = DATABRIDGE_init;
-
-  databridge.uart = &uart;
-  databridge.usb = &usb;
-  databridge.xbee = &telecom;
-}*/
 
 void setupUART() {
   uart.errorStatus.bits.notInitialized = 1;

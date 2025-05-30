@@ -12,10 +12,12 @@
 #include "../sirius-embedded-common/sirius-headers-common/GSControl/GSControlState.h"
 
 #include "../sirius-embedded-common/Inc/Device/Telecommunication/Telecommunication.h"
+#include "../sirius-embedded-common/sirius-headers-common/Telecommunication/BoardCommand.h"
+#include "../sirius-embedded-common/sirius-headers-common/Telecommunication/CommandResponse.h"
+#include "../sirius-embedded-common/sirius-headers-common/Telecommunication/GSCommand.h"
+#include "../sirius-embedded-common/sirius-headers-common/Telecommunication/TelemetryPacket.h"
 
 #include "../sirius-embedded-common/Inc/Device/Telecommunication/xbee.h"
-
-#include "Databridge.h"
 
 #include "stm32f4xx_hal.h"
 
@@ -24,23 +26,25 @@
 
 #define FUNCTION_NULL_POINTER 0
 
-typedef struct {
-  GSControlErrorStatus errorStatus;
-  GSControlStatus      status;
+#define UART_BUFFER_SIZE (uint16_t)0x40
 
+typedef struct {
   uint8_t currentState;
 
-  GPIO*  gpios;
-  UART*  uart;
-  USB*   usb;
-  DataBridge* DataBridge;
-  Telecommunication* telecom;
+  GPIO*         gpios;
+  UART*         uart;
+  volatile USB* usb;
+
+  Telecommunication* telecommunication;
   Button* buttons;
+
+  GSControlErrorStatus errorStatus;
+  GSControlStatus      status;
 }
 GSControl;
 
-extern void GSControl_init(GPIO* gpios, UART* uart, USB* usb, Telecommunication* telecom, Button* buttons, DataBridge* databridge);
+void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunication* telecom, Button* buttons);
 
-extern void GSControl_tick(uint32_t timestamp_ms);
+void GSControl_tick(uint32_t timestamp_ms);
 
-extern void GSControl_execute(uint32_t timestamp_ms);
+void GSControl_execute(uint32_t timestamp_ms);
