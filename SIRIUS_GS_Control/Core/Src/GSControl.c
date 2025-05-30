@@ -62,16 +62,8 @@ void GSControl_tick(uint32_t timestamp_ms) {
   for (uint8_t i = 0; i < GS_CONTROL_BUTTON_AMOUNT;i++) {
     gsControl.buttons[i].tick((struct Button*)&gsControl.buttons[i], timestamp_ms);
   }
-  updateButtonStates();
+  gsControl.telecommunication->tick((struct Telecommunication*)gsControl.telecommunication, timestamp_ms);
 
-  gsControl.telecommunication->receiveData((struct Telecommunication*)gsControl.telecommunication, uartBuffer, UART_BUFFER_SIZE);
-  parseUartPacket();
-
-  if (gsControl.usb->status.bits.rxDataReady) {
-    parseUsbPacket();
-    gsControl.usb->status.bits.rxDataReady = 0;
-  }
-  
   GSControl_execute(timestamp_ms);
 }
 
@@ -88,23 +80,49 @@ void GSControl_execute(uint32_t timestamp_ms) {
       executeAbort(timestamp_ms);
       break;
     default:
-    gsControl.errorStatus.bits.invalidState = 1;
+      gsControl.errorStatus.bits.invalidState = 1;
       executeIdle(timestamp_ms);
       break;
   }
 }
 
 void executeInit(uint32_t timestamp_ms) {
-  gsControl.currentState = GS_CONTROL_STATE_IDLE;
-
   gsControl.telecommunication->config((struct Telecommunication*) gsControl.telecommunication);
+  gsControl.currentState = GS_CONTROL_STATE_IDLE;
 }
 
 void executeIdle(uint32_t timestamp_ms) {
+  updateButtonStates();
+
+  gsControl.telecommunication->receiveData((struct Telecommunication*)gsControl.telecommunication, uartBuffer, UART_BUFFER_SIZE);
+  if (uartBuffer[0] != 0 && uartBuffer[1] != 0) {
+    parseUartPacket();
+  }
+
+  if (gsControl.usb->status.bits.rxDataReady) {
+    parseUsbPacket();
+    gsControl.usb->status.bits.rxDataReady = 0;
+  }
+
+  uint8_t bit[] = "c";
+  gsControl.telecommunication->sendData(gsControl.telecommunication, bit, sizeof(bit));
+  HAL_Delay(200);
   // INTERPRET COMMAND THEN SEND OR NO
 }
 
 void executeAbort(uint32_t timestamp_ms) {
+  updateButtonStates();
+
+  gsControl.telecommunication->receiveData((struct Telecommunication*)gsControl.telecommunication, uartBuffer, UART_BUFFER_SIZE);
+  if (uartBuffer[0] != 0) {
+    parseUartPacket();
+  }
+
+  if (gsControl.usb->status.bits.rxDataReady) {
+    parseUsbPacket();
+    gsControl.usb->status.bits.rxDataReady = 0;
+  }
+
   // INTERPRET COMMAND THEN SEND OR NO
 }
 
