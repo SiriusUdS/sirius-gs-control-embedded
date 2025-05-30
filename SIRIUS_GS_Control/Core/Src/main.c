@@ -51,8 +51,6 @@ DMA_HandleTypeDef hdma_sdio_tx;
 
 SPI_HandleTypeDef hspi2;
 
-TIM_HandleTypeDef htim4;
-
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -70,7 +68,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_TIM4_Init(void);
 static void MX_SDIO_SD_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_CRC_Init(void);
@@ -121,11 +118,10 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
-  MX_TIM4_Init();
   MX_USB_DEVICE_Init();
-  MX_SDIO_SD_Init();
+  //MX_SDIO_SD_Init();
   MX_SPI2_Init();
-  MX_FATFS_Init();
+  //MX_FATFS_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
 
@@ -148,6 +144,7 @@ int main(void)
   while (1)
   { 
     GSControl_tick(HAL_GetTick());
+    uint8_t test = HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_8);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -293,73 +290,6 @@ static void MX_SPI2_Init(void)
 }
 
 /**
-  * @brief TIM4 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM4_Init(void)
-{
-
-  /* USER CODE BEGIN TIM4_Init 0 */
-
-  /* USER CODE END TIM4_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  /* USER CODE BEGIN TIM4_Init 1 */
-
-  /* USER CODE END TIM4_Init 1 */
-  htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 0;
-  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 65535;
-  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM4_Init 2 */
-
-  /* USER CODE END TIM4_Init 2 */
-  HAL_TIM_MspPostInit(&htim4);
-
-}
-
-/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -423,35 +353,29 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_OUTPUT_EXT_FLASH_HOLD_Pin|GPIO_OUTPUT_EXT_FLASH_WP_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_OUTPUT_HEATPAD_1_Pin|GPIO_OUTPUT_HEATPAD_2_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, GPIO_OUTPUT_EMATCH_1_Pin|GPIO_OUTPUT_EMATCH_2_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pins : GPIO_INPUT_EMATCH_INDICATOR_2_Pin GPIO_INPUT_EMATCH_INDICATOR_1_Pin */
-  GPIO_InitStruct.Pin = GPIO_INPUT_EMATCH_INDICATOR_2_Pin|GPIO_INPUT_EMATCH_INDICATOR_1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : GPIO_INPUT_SWITCH_ALLOW_FILL_Pin GPIO_INPUT_SWITCH_ARM_SERVO_Pin GPIO_INPUT_SWITCH_ARM_IGNITER_Pin GPIO_INPUT_SWITCH_UNUSED_Pin
+  /*Configure GPIO pins : GPIO_INPUT_SWITCH_ALLOW_FILL_Pin GPIO_INPUT_SWITCH_ARM_VALVE_Pin GPIO_INPUT_SWITCH_ARM_IGNITER_Pin GPIO_INPUT_SWITCH_UNUSED_Pin
                            GPIO_INPUT_BUTTON_EMERGENCY_STOP_Pin GPIO_INPUT_BUTTON_FIRE_IGNITER_Pin GPIO_INPUT_KEY_SWITCH_UNSAFE_Pin */
-  GPIO_InitStruct.Pin = GPIO_INPUT_SWITCH_ALLOW_FILL_Pin|GPIO_INPUT_SWITCH_ARM_SERVO_Pin|GPIO_INPUT_SWITCH_ARM_IGNITER_Pin|GPIO_INPUT_SWITCH_UNUSED_Pin
+  GPIO_InitStruct.Pin = GPIO_INPUT_SWITCH_ALLOW_FILL_Pin|GPIO_INPUT_SWITCH_ARM_VALVE_Pin|GPIO_INPUT_SWITCH_ARM_IGNITER_Pin|GPIO_INPUT_SWITCH_UNUSED_Pin
                           |GPIO_INPUT_BUTTON_EMERGENCY_STOP_Pin|GPIO_INPUT_BUTTON_FIRE_IGNITER_Pin|GPIO_INPUT_KEY_SWITCH_UNSAFE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PE7 PE8 PE9 PE10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : GPIO_OUTPUT_EXT_FLASH_HOLD_Pin GPIO_OUTPUT_EXT_FLASH_WP_Pin */
   GPIO_InitStruct.Pin = GPIO_OUTPUT_EXT_FLASH_HOLD_Pin|GPIO_OUTPUT_EXT_FLASH_WP_Pin;
@@ -466,20 +390,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(SD_CARD_DETECT_PD_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : GPIO_OUTPUT_HEATPAD_1_Pin GPIO_OUTPUT_HEATPAD_2_Pin */
-  GPIO_InitStruct.Pin = GPIO_OUTPUT_HEATPAD_1_Pin|GPIO_OUTPUT_HEATPAD_2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : GPIO_OUTPUT_EMATCH_1_Pin GPIO_OUTPUT_EMATCH_2_Pin */
-  GPIO_InitStruct.Pin = GPIO_OUTPUT_EMATCH_1_Pin|GPIO_OUTPUT_EMATCH_2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -490,26 +400,26 @@ static void MX_GPIO_Init(void)
 
 void setupGPIOs() {
   gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].pinNumber = GPIO_PIN_0;
+  gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].pinNumber = GPIO_PIN_7;
   gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_ALLOW_FILL_INDEX].init = (GPIO_init)GPIOHAL_init;
 
   gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].pinNumber = GPIO_PIN_1;
+  gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].pinNumber = GPIO_PIN_8;
   gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_ARM_VALVE_INDEX].init = (GPIO_init)GPIOHAL_init;
 
   gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].pinNumber = GPIO_PIN_2;
+  gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].pinNumber = GPIO_PIN_9;
   gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].init = (GPIO_init)GPIOHAL_init;
 
   gpios[GS_CONTROL_GPIO_UNUSED_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].pinNumber = GPIO_PIN_3;
+  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].pinNumber = GPIO_PIN_10;
   gpios[GS_CONTROL_GPIO_UNUSED_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_UNUSED_INDEX].init = (GPIO_init)GPIOHAL_init;
 

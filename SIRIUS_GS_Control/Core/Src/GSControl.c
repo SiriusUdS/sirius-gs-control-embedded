@@ -51,7 +51,6 @@ void GSControl_tick(uint32_t timestamp_ms) {
   }
   updateButtonStates();
   
-  
   GSControl_execute(timestamp_ms);
 }
 
@@ -100,29 +99,50 @@ void updateButtonStates() {
   if (gsControl.buttons[GS_CONTROL_BUTTON_EMERGENCY_STOP_INDEX].status.bits.isPressed) {
     gsControl.status.bits.isEmergencyStopButtonPressed = 1;
   }
+  else {
+    gsControl.status.bits.isEmergencyStopButtonPressed = 0;
+  }
 
   if (gsControl.buttons[GS_CONTROL_BUTTON_UNSAFE_INDEX].status.bits.isPressed) {
     gsControl.status.bits.isUnsafeKeySwitchPressed = 1;
+  }
+  else {
+    gsControl.status.bits.isUnsafeKeySwitchPressed = 0;
   }
 
   if (gsControl.buttons[GS_CONTROL_BUTTON_ALLOW_FILL_INDEX].status.bits.isPressed) {
     gsControl.status.bits.isAllowFillSwitchOn = 1;
   }
+  else {
+    gsControl.status.bits.isAllowFillSwitchOn = 0;
+  }
 
   if (gsControl.buttons[GS_CONTROL_BUTTON_ARM_IGNITER_INDEX].status.bits.isPressed) {
     gsControl.status.bits.isArmIgniterSwitchOn = 1;
+  }
+  else {
+    gsControl.status.bits.isArmIgniterSwitchOn = 0;
   }
 
   if (gsControl.buttons[GS_CONTROL_BUTTON_ARM_VALVE_INDEX].status.bits.isPressed) {
     gsControl.status.bits.isArmServoSwitchOn = 1;
   }
+  else {
+    gsControl.status.bits.isArmServoSwitchOn = 0;
+  }
 
   if (gsControl.buttons[GS_CONTROL_BUTTON_FIRE_IGNITER_INDEX].status.bits.isPressed) {
     gsControl.status.bits.isFireIgniterButtonPressed = 1;
   }
+  else {
+    gsControl.status.bits.isFireIgniterButtonPressed = 0;
+  }
 
   if (gsControl.buttons[GS_CONTROL_BUTTON_UNUSED_INDEX].status.bits.isPressed) {
     gsControl.status.bits.isUnusedSwitchOn = 1;
+  }
+  else {
+    gsControl.status.bits.isUnusedSwitchOn = 0;
   }
 }
 
@@ -195,5 +215,4 @@ void initButton(){
     gsControl.buttons[i].init((struct Button*)&gsControl.buttons[i]);
     gsControl.buttons[i].gpio = &gsControl.gpios[i];
   }
-  return;
 }
