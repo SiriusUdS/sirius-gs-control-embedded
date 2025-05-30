@@ -95,7 +95,7 @@ void executeIdle(uint32_t timestamp_ms) {
   updateButtonStates();
 
   gsControl.telecommunication->receiveData((struct Telecommunication*)gsControl.telecommunication, uartBuffer, UART_BUFFER_SIZE);
-  if (uartBuffer[0] != 0 && uartBuffer[1] != 0) {
+  if (uartBuffer[0] != 0) {
     parseUartPacket();
   }
 
@@ -104,9 +104,10 @@ void executeIdle(uint32_t timestamp_ms) {
     gsControl.usb->status.bits.rxDataReady = 0;
   }
 
-  uint8_t bit[] = "c";
+  uint8_t bit[] = "JOHN CENA RULES";
   gsControl.telecommunication->sendData(gsControl.telecommunication, bit, sizeof(bit));
   HAL_Delay(200);
+  //HAL_UART_Receive_DMA();
   // INTERPRET COMMAND THEN SEND OR NO
 }
 
