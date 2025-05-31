@@ -11,7 +11,12 @@ EngineStatusPacket currentEngineStatusPacket = {0};
 FillingStationTelemetryPacket currentFillingStationTelemetryPacket = {0};
 FillingStationStatusPacket currentFillingStationStatusPacket = {0};
 
-uint8_t uartBuffer[UART_BUFFER_SIZE] = {0};
+uint8_t uartBuffer[sizeof(EngineTelemetryPacket)] = {0};
+
+uint8_t testMessage[] = "LETS GO BRANDON";
+
+uint32_t packetHeader = 0;
+uint32_t packetType = 0;
 
 static void executeInit(uint32_t timestamp_ms);
 static void executeIdle(uint32_t timestamp_ms);
@@ -25,6 +30,7 @@ static void initButton();
 static void initTelecom();
 
 static void updateButtonStates();
+static void parseIncomingPackets();
 static void parseUartPacket();
 static void parseUsbPacket();
 
@@ -88,41 +94,29 @@ void GSControl_execute(uint32_t timestamp_ms) {
 
 void executeInit(uint32_t timestamp_ms) {
   gsControl.telecommunication->config((struct Telecommunication*) gsControl.telecommunication);
+  HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer)); // Start the DMA
+  gsControl.uart->status.bits.txReady = 1;
   gsControl.currentState = GS_CONTROL_STATE_IDLE;
 }
 
 void executeIdle(uint32_t timestamp_ms) {
   updateButtonStates();
+  parseIncomingPackets();
 
-  gsControl.telecommunication->receiveData((struct Telecommunication*)gsControl.telecommunication, uartBuffer, UART_BUFFER_SIZE);
-  if (uartBuffer[0] != 0) {
-    parseUartPacket();
+  
+  if (gsControl.uart->status.bits.txReady == 1) {
+    HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, testMessage, sizeof(testMessage));
+    gsControl.uart->status.bits.txReady = 0;
+    HAL_Delay(200);
   }
 
-  if (gsControl.usb->status.bits.rxDataReady) {
-    parseUsbPacket();
-    gsControl.usb->status.bits.rxDataReady = 0;
-  }
-
-  uint8_t bit[] = "JOHN CENA RULES";
-  gsControl.telecommunication->sendData(gsControl.telecommunication, bit, sizeof(bit));
-  HAL_Delay(200);
   //HAL_UART_Receive_DMA();
   // INTERPRET COMMAND THEN SEND OR NO
 }
 
 void executeAbort(uint32_t timestamp_ms) {
   updateButtonStates();
-
-  gsControl.telecommunication->receiveData((struct Telecommunication*)gsControl.telecommunication, uartBuffer, UART_BUFFER_SIZE);
-  if (uartBuffer[0] != 0) {
-    parseUartPacket();
-  }
-
-  if (gsControl.usb->status.bits.rxDataReady) {
-    parseUsbPacket();
-    gsControl.usb->status.bits.rxDataReady = 0;
-  }
+  parseIncomingPackets();
 
   // INTERPRET COMMAND THEN SEND OR NO
 }
@@ -178,11 +172,21 @@ void updateButtonStates() {
   }
 }
 
-void parseUartPacket() {
-  uint32_t packetHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
-  uint32_t type = packetHeader & 0xFFFFF000UL;
+void parseIncomingPackets() {
+  if (gsControl.telecommunication->uart->status.bits.rxDataReady == 1) {
+    parseUartPacket();
+    gsControl.telecommunication->uart->status.bits.rxDataReady = 0;
+    HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer));
+  }
 
-  switch (type)
+  if (gsControl.usb->status.bits.rxDataReady) {
+    parseUsbPacket();
+    gsControl.usb->status.bits.rxDataReady = 0;
+  }
+}
+
+void parseUartPacket() {
+  switch (packetType)
   {
     case COMMAND_RESPONSE_TYPE_CODE:
       parseCommandResponsePacket();
@@ -328,5 +332,35 @@ void initButton(){
     gsControl.buttons[i].delayBetweenReads_ms = 4;
     gsControl.buttons[i].init((struct Button*)&gsControl.buttons[i]);
     gsControl.buttons[i].gpio = &gsControl.gpios[i];
+  }
+}
+
+void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
+  if (huart->Instance == USART1) {
+    packetHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
+    packetType = packetHeader & 0xFFFFF000UL;
+  }
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+  if (huart->Instance == USART1) {
+    if (gsControl.uart->status.bits.rxDataReady == 0) {
+      // CHECK CRC, IF NOT GOOD, RAISE FLAG FOR NEXT STATUS PACKET
+      gsControl.uart->status.bits.rxDataReady = 1;
+    }
+  }
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+  if (huart->Instance == USART1) {
+    if (gsControl.uart->status.bits.txReady == 0) {
+      gsControl.uart->status.bits.txReady = 1;
+    }
+  }
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+  if (huart->Instance == USART1) {
+    HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.telecommunication->uart->externalHandle, uartBuffer, sizeof(uartBuffer));
   }
 }
