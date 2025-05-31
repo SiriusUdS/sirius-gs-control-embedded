@@ -28,6 +28,8 @@
 
 #define UART_BUFFER_SIZE (uint16_t)0x40
 
+#define GS_CONTROL_DELAY_BETWEEN_STATUS_PACKETS_MS 50
+
 typedef struct {
   uint8_t currentState;
 
@@ -37,6 +39,8 @@ typedef struct {
 
   Telecommunication* telecommunication;
   Button* buttons;
+
+  uint32_t communicationTimestampTarget_ms;
 
   GSControlErrorStatus errorStatus;
   GSControlStatus      status;

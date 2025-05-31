@@ -8,7 +8,6 @@
 #include "../sirius-embedded-common/sirius-headers-common/DataBridge/DataBridgeErrorStatus.h"
 #include "../sirius-embedded-common/Inc/Device/Telecommunication/Telecommunication.h"
 
-
 struct DataBridge;
 
 typedef void (*DataBridge_init)(struct DataBridge* instance, volatile USB* usb,Telecommunication* telecommunication);

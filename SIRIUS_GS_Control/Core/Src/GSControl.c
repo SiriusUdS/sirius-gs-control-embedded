@@ -11,12 +11,34 @@ EngineStatusPacket currentEngineStatusPacket = {0};
 FillingStationTelemetryPacket currentFillingStationTelemetryPacket = {0};
 FillingStationStatusPacket currentFillingStationStatusPacket = {0};
 
+GSControlStatusPacket currentGSControlStatusPacket = {
+  .fields = {
+    .header = {
+      .bits = {
+        .type = TELEMETRY_TYPE_CODE,
+        .boardId = TELEMETRY_GS_CONTROL_BOARD_ID,
+        .RESERVED = 0
+      }
+    },
+    .errorStatus = 0,
+    .status = 0,
+    .timestamp_ms = 0,
+    .crc = 0
+  }
+};
+
 uint8_t uartBuffer[sizeof(EngineTelemetryPacket)] = {0};
 
 uint8_t testMessage[] = "LETS GO BRANDON";
 
-uint32_t packetHeader = 0;
-uint32_t packetType = 0;
+uint32_t telemetryPacketHeader = 0;
+uint32_t telemetryPacketType = 0;
+
+uint32_t commandPacketHeader = 0;
+uint32_t commandPacketType = 0;
+
+uint8_t engineState;
+uint8_t fillingStationState;
 
 static void executeInit(uint32_t timestamp_ms);
 static void executeIdle(uint32_t timestamp_ms);
@@ -30,7 +52,18 @@ static void initButton();
 static void initTelecom();
 
 static void updateButtonStates();
-static void parseIncomingPackets();
+static void handleIncomingPackets();
+static void handleIncomingCommand();
+static void handleCommunication(uint32_t timestamp_ms);
+static void sendStatusPacket(uint32_t timestamp_ms);
+static void sendBoardCommand();
+static void sendACKResponse();
+
+static uint8_t checkUnsafe();
+static uint8_t checkAllowFill();
+/*static uint8_t check();
+static uint8_t checkUnsafe();*/
+
 static void parseUartPacket();
 static void parseUsbPacket();
 
@@ -101,24 +134,20 @@ void executeInit(uint32_t timestamp_ms) {
 
 void executeIdle(uint32_t timestamp_ms) {
   updateButtonStates();
-  parseIncomingPackets();
-
+  handleIncomingPackets();
+  handleCommunication(timestamp_ms);
   
-  if (gsControl.uart->status.bits.txReady == 1) {
+  /*if (gsControl.uart->status.bits.txReady == 1) {
     HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, testMessage, sizeof(testMessage));
     gsControl.uart->status.bits.txReady = 0;
     HAL_Delay(200);
-  }
-
-  //HAL_UART_Receive_DMA();
-  // INTERPRET COMMAND THEN SEND OR NO
+  }*/
 }
 
 void executeAbort(uint32_t timestamp_ms) {
   updateButtonStates();
-  parseIncomingPackets();
-
-  // INTERPRET COMMAND THEN SEND OR NO
+  handleIncomingPackets();
+  handleCommunication(timestamp_ms);
 }
 
 void updateButtonStates() {
@@ -172,30 +201,128 @@ void updateButtonStates() {
   }
 }
 
-void parseIncomingPackets() {
+void handleIncomingPackets() {
   if (gsControl.telecommunication->uart->status.bits.rxDataReady == 1) {
+    // CHECK CRC
     parseUartPacket();
+    gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer)); // retransmit from boards - no questions asked
     gsControl.telecommunication->uart->status.bits.rxDataReady = 0;
     HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer));
   }
 
   if (gsControl.usb->status.bits.rxDataReady) {
+    // CHECK CRC
     parseUsbPacket();
+    handleIncomingCommand();
     gsControl.usb->status.bits.rxDataReady = 0;
   }
 }
 
+void handleIncomingCommand() {
+  if (commandPacketType != 0) {
+    switch (currentBoardCommand.fields.header.bits.commandCode)
+    {
+      case BOARD_COMMAND_CODE_ABORT:
+        sendBoardCommand();
+        gsControl.status.bits.state = GS_CONTROL_STATE_ABORT;
+        break;
+      case BOARD_COMMAND_CODE_ACK:
+        sendBoardCommand();
+        sendACKResponse();
+        break;
+      case BOARD_COMMAND_CODE_RESET:
+        if (gsControl.status.bits.state == GS_CONTROL_STATE_ABORT) {
+          gsControl.status.bits.state = GS_CONTROL_STATE_IDLE;
+          sendBoardCommand(); // CHECK FOR CASE WHERE THEY DONT RESPOND
+        }
+        break;
+      case BOARD_COMMAND_CODE_UNSAFE:
+        if (checkUnsafe()) {
+          sendBoardCommand();
+        }
+        break;
+      case FILLING_STATION_COMMAND_ALLOW_FILL:
+        if (checkAllowFill()) {
+          sendBoardCommand();
+        }
+      default:
+        break;
+    }
+  }
+}
+
+void handleCommunication(uint32_t timestamp_ms) {
+  if (gsControl.communicationTimestampTarget_ms <= timestamp_ms) {
+    sendStatusPacket(timestamp_ms);
+    gsControl.communicationTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_STATUS_PACKETS_MS;
+  }
+}
+
+void sendStatusPacket(uint32_t timestamp_ms) {
+  currentGSControlStatusPacket.fields.status = gsControl.status.value;
+  currentGSControlStatusPacket.fields.errorStatus = gsControl.errorStatus.value;
+  currentGSControlStatusPacket.fields.timestamp_ms = timestamp_ms;
+  currentGSControlStatusPacket.fields.crc = 0; // CRC
+
+  gsControl.usb->transmit((struct USB*)gsControl.usb, currentGSControlStatusPacket.data, sizeof(GSControlStatusPacket));
+}
+
+void sendBoardCommand() {
+  if (gsControl.uart->status.bits.txReady == 1) {
+    HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentBoardCommand.data, sizeof(BoardCommand));
+    gsControl.uart->status.bits.txReady = 0;
+  }
+  else {
+    // COMMAND PENDING
+  }
+}
+
+void sendACKResponse() {
+  CommandResponse commandResponse = {
+    .fields = {
+      .header = {
+        .bits = {
+          .type = COMMAND_RESPONSE_TYPE_CODE,
+          .boardId = TELEMETRY_GS_CONTROL_BOARD_ID,
+          .commandIndex = currentBoardCommand.fields.header.bits.commandIndex,
+          .response = RESPONSE_CODE_OK
+        }
+      },
+      .crc = 0 // CRC
+    }
+  };
+
+  gsControl.usb->transmit((struct USB*)gsControl.usb, commandResponse.data, sizeof(CommandResponse));
+}
+
+uint8_t checkUnsafe() {
+  uint8_t result = 0;
+  if (gsControl.status.bits.state != GS_CONTROL_STATE_ABORT) {
+    result = 1;
+  }
+  return result;
+}
+
+uint8_t checkAllowFill() {
+  uint8_t result = 0;
+  if (gsControl.status.bits.state != GS_CONTROL_STATE_ABORT && 
+      gsControl.status.bits.isUnsafeKeySwitchPressed) {
+    result = 1;
+  }
+  return result;
+}
+
 void parseUartPacket() {
-  switch (packetType)
+  switch (telemetryPacketType)
   {
     case COMMAND_RESPONSE_TYPE_CODE:
       parseCommandResponsePacket();
       break;
     case TELEMETRY_TYPE_CODE:
-      parseTelemetryPacket(packetHeader);
+      parseTelemetryPacket(telemetryPacketHeader);
       break;
     case STATUS_TYPE_CODE:
-      parseStatusPacket(packetHeader);
+      parseStatusPacket(telemetryPacketHeader);
       break;
     default:
       // RAISE ERROR FLAG
@@ -204,10 +331,10 @@ void parseUartPacket() {
 }
 
 void parseUsbPacket() {
-  uint32_t packetHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
-  uint32_t type = packetHeader & 0xFFFFF000UL;
+  commandPacketHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
+  commandPacketType = commandPacketHeader & 0xFFFFF000UL;
   
-  if (type == BOARD_COMMAND_TYPE_CODE) {
+  if (commandPacketType == BOARD_COMMAND_TYPE_CODE) {
     parseBoardCommandPacket();
   }
 }
@@ -337,8 +464,8 @@ void initButton(){
 
 void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
   if (huart->Instance == USART1) {
-    packetHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
-    packetType = packetHeader & 0xFFFFF000UL;
+    telemetryPacketHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
+    telemetryPacketType = telemetryPacketHeader & 0xFFFFF000UL;
   }
 }
 
