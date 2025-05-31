@@ -15,7 +15,7 @@ GSControlStatusPacket currentGSControlStatusPacket = {
   .fields = {
     .header = {
       .bits = {
-        .type = TELEMETRY_TYPE_CODE,
+        .type = STATUS_TYPE_CODE,
         .boardId = TELEMETRY_GS_CONTROL_BOARD_ID,
         .RESERVED = 0
       }
@@ -127,7 +127,7 @@ void GSControl_execute(uint32_t timestamp_ms) {
 
 void executeInit(uint32_t timestamp_ms) {
   gsControl.telecommunication->config((struct Telecommunication*) gsControl.telecommunication);
-  HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer)); // Start the DMA
+  HAL_UART_Receive_IT((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer)); // Start the DMA
   gsControl.uart->status.bits.txReady = 1;
   gsControl.currentState = GS_CONTROL_STATE_IDLE;
 }
@@ -138,7 +138,7 @@ void executeIdle(uint32_t timestamp_ms) {
   handleCommunication(timestamp_ms);
   
   /*if (gsControl.uart->status.bits.txReady == 1) {
-    HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, testMessage, sizeof(testMessage));
+    HAL_UART_Transmit_IT((UART_HandleTypeDef*)gsControl.uart->externalHandle, testMessage, sizeof(testMessage));
     gsControl.uart->status.bits.txReady = 0;
     HAL_Delay(200);
   }*/
@@ -193,11 +193,18 @@ void updateButtonStates() {
     gsControl.status.bits.isFireIgniterButtonPressed = 0;
   }
 
-  if (gsControl.buttons[GS_CONTROL_BUTTON_UNUSED_INDEX].status.bits.isPressed) {
-    gsControl.status.bits.isUnusedSwitchOn = 1;
+  if (gsControl.buttons[GS_CONTROL_BUTTON_ALLOW_DUMP_INDEX].status.bits.isPressed) {
+    gsControl.status.bits.isAllowDumpSwitchOn = 1;
   }
   else {
-    gsControl.status.bits.isUnusedSwitchOn = 0;
+    gsControl.status.bits.isAllowDumpSwitchOn = 0;
+  }
+
+  if (gsControl.buttons[GS_CONTROL_BUTTON_VALVE_START_INDEX].status.bits.isPressed) {
+    gsControl.status.bits.isValveStartButtonPressed = 1;
+  }
+  else {
+    gsControl.status.bits.isValveStartButtonPressed = 0;
   }
 }
 
@@ -207,7 +214,7 @@ void handleIncomingPackets() {
     parseUartPacket();
     gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer)); // retransmit from boards - no questions asked
     gsControl.telecommunication->uart->status.bits.rxDataReady = 0;
-    HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer));
+    HAL_UART_Receive_IT((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer));
   }
 
   if (gsControl.usb->status.bits.rxDataReady) {
@@ -259,8 +266,8 @@ void handleCommunication(uint32_t timestamp_ms) {
 }
 
 void sendStatusPacket(uint32_t timestamp_ms) {
-  currentGSControlStatusPacket.fields.status = gsControl.status.value;
-  currentGSControlStatusPacket.fields.errorStatus = gsControl.errorStatus.value;
+  currentGSControlStatusPacket.fields.status.value = gsControl.status.value;
+  currentGSControlStatusPacket.fields.errorStatus.value = gsControl.errorStatus.value;
   currentGSControlStatusPacket.fields.timestamp_ms = timestamp_ms;
   currentGSControlStatusPacket.fields.crc = 0; // CRC
 
@@ -269,7 +276,7 @@ void sendStatusPacket(uint32_t timestamp_ms) {
 
 void sendBoardCommand() {
   if (gsControl.uart->status.bits.txReady == 1) {
-    HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentBoardCommand.data, sizeof(BoardCommand));
+    HAL_UART_Transmit_IT((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentBoardCommand.data, sizeof(BoardCommand));
     gsControl.uart->status.bits.txReady = 0;
   }
   else {
@@ -488,6 +495,6 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   if (huart->Instance == USART1) {
-    HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.telecommunication->uart->externalHandle, uartBuffer, sizeof(uartBuffer));
+    HAL_UART_Receive_IT((UART_HandleTypeDef*)gsControl.telecommunication->uart->externalHandle, uartBuffer, sizeof(uartBuffer));
   }
 }
