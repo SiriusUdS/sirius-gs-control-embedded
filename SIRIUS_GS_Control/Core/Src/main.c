@@ -89,22 +89,12 @@ static void setupDataBridge();
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  if(huart->Instance == USART1)
-  {
-    // Handle UART RX complete callback
-    //HAL_UART_Transmit_DMA(&huart1, uartRxBuffer, sizeof(uartRxBuffer)); // Echo back received data
-    HAL_UART_Receive_DMA(&huart1, uartRxBuffer, sizeof(uartRxBuffer));
-  }
-}
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+/*void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
     if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE)) {
         __HAL_UART_CLEAR_OREFLAG(huart); // Clear the overrun flag
         HAL_UART_Receive_DMA(huart, uartRxBuffer, sizeof(uartRxBuffer)); // Re-enable interrupt
     }
-}
+}*/
 /* USER CODE END 0 */
 
 /**
@@ -162,12 +152,14 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_UART_Transmit_DMA(&huart1, "b", 2);
-  HAL_Delay(50);
+  for (uint8_t i = 0; i < 4; i++) {
+    HAL_UART_Transmit_DMA(&huart1, "b", 2);
+    HAL_Delay(50);
+  }
 
   while (1)
   {
-    BoardCommand cmd = {
+    /*BoardCommand cmd = {
       .fields = {
         .header = {
           .bits = {
@@ -183,9 +175,9 @@ int main(void)
       }
     };
     HAL_UART_Transmit_DMA(&huart1, cmd.data, sizeof(BoardCommand));
-    HAL_Delay(500);
+    HAL_Delay(500);*/
     //HAL_UART_Receive(&huart1, uartRxBuffer, sizeof(uartRxBuffer), HAL_MAX_DELAY);
-    //GSControl_tick(HAL_GetTick());
+    GSControl_tick(HAL_GetTick());
     /*if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE)) {
         __HAL_UART_CLEAR_OREFLAG(&huart1); // Clear the overrun flag
         HAL_UART_Receive_IT(&huart1, uartRxBuffer, sizeof(uartRxBuffer)); // Re-enable interrupt

@@ -27,7 +27,7 @@ GSControlStatusPacket currentGSControlStatusPacket = {
   }
 };
 
-uint8_t uartBuffer[sizeof(EngineTelemetryPacket)] = {0};
+uint8_t uartBuffer[880] = {0};
 
 uint8_t testMessage[] = "LETS GO BRANDON";
 
@@ -65,7 +65,7 @@ static uint8_t checkAllowFill();
 static uint8_t checkUnsafe();*/
 
 static void parseUartPacket();
-static void parseUsbPacket();
+static uint8_t parseUsbPacket();
 
 static void parseCommandResponsePacket();
 static void parseBoardCommandPacket();
@@ -103,6 +103,7 @@ void GSControl_tick(uint32_t timestamp_ms) {
   }
   gsControl.telecommunication->tick((struct Telecommunication*)gsControl.telecommunication, timestamp_ms);
 
+  handleIncomingCommand();
   GSControl_execute(timestamp_ms);
 }
 
@@ -127,14 +128,14 @@ void GSControl_execute(uint32_t timestamp_ms) {
 
 void executeInit(uint32_t timestamp_ms) {
   gsControl.telecommunication->config((struct Telecommunication*) gsControl.telecommunication);
-  HAL_UART_Receive_IT((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer)); // Start the DMA
-  gsControl.uart->status.bits.txReady = 1;
+  HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer)); // Start the DMA
+  //gsControl.uart->status.bits.txReady = 1;
   gsControl.currentState = GS_CONTROL_STATE_IDLE;
 }
 
 void executeIdle(uint32_t timestamp_ms) {
   updateButtonStates();
-  handleIncomingPackets();
+  //handleIncomingPackets();
   handleCommunication(timestamp_ms);
   
   /*if (gsControl.uart->status.bits.txReady == 1) {
@@ -146,7 +147,7 @@ void executeIdle(uint32_t timestamp_ms) {
 
 void executeAbort(uint32_t timestamp_ms) {
   updateButtonStates();
-  handleIncomingPackets();
+  //handleIncomingPackets();
   handleCommunication(timestamp_ms);
 }
 
@@ -208,25 +209,24 @@ void updateButtonStates() {
   }
 }
 
+// PUT INTERRUPT BASED
 void handleIncomingPackets() {
+  
   if (gsControl.telecommunication->uart->status.bits.rxDataReady == 1) {
     // CHECK CRC
-    parseUartPacket();
-    gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer)); // retransmit from boards - no questions asked
-    gsControl.telecommunication->uart->status.bits.rxDataReady = 0;
-    HAL_UART_Receive_IT((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer));
-  }
-
-  if (gsControl.usb->status.bits.rxDataReady) {
-    // CHECK CRC
-    parseUsbPacket();
-    handleIncomingCommand();
-    gsControl.usb->status.bits.rxDataReady = 0;
+    //parseUartPacket();
+    //gsControl.telecommunication->uart->status.bits.rxDataReady = 0;
   }
 }
 
 void handleIncomingCommand() {
-  if (commandPacketType != 0) {
+  if (gsControl.usb->status.bits.rxDataReady) {
+    if (!parseUsbPacket()) {
+      //gsControl.errorStatus.bits.invalidCommand = 1;
+      gsControl.usb->status.bits.rxDataReady = 0;
+      return;
+    }
+
     switch (currentBoardCommand.fields.header.bits.commandCode)
     {
       case BOARD_COMMAND_CODE_ABORT:
@@ -240,13 +240,16 @@ void handleIncomingCommand() {
       case BOARD_COMMAND_CODE_RESET:
         if (gsControl.status.bits.state == GS_CONTROL_STATE_ABORT) {
           gsControl.status.bits.state = GS_CONTROL_STATE_IDLE;
-          sendBoardCommand(); // CHECK FOR CASE WHERE THEY DONT RESPOND
+          sendBoardCommand();
         }
         break;
       case BOARD_COMMAND_CODE_UNSAFE:
         if (checkUnsafe()) {
           sendBoardCommand();
         }
+        break;
+      case ENGINE_COMMAND_CODE_OPEN_VALVE:
+        sendBoardCommand();
         break;
       /*case FILLING_STATION_COMMAND_ALLOW_FILL:
         if (checkAllowFill()) {
@@ -255,6 +258,7 @@ void handleIncomingCommand() {
       default:
         break;
     }
+    gsControl.usb->status.bits.rxDataReady = 0;
   }
 }
 
@@ -275,13 +279,7 @@ void sendStatusPacket(uint32_t timestamp_ms) {
 }
 
 void sendBoardCommand() {
-  if (gsControl.uart->status.bits.txReady == 1) {
-    HAL_UART_Transmit_IT((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentBoardCommand.data, sizeof(BoardCommand));
-    gsControl.uart->status.bits.txReady = 0;
-  }
-  else {
-    // COMMAND PENDING
-  }
+  HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentBoardCommand.data, sizeof(BoardCommand));
 }
 
 void sendACKResponse() {
@@ -337,13 +335,21 @@ void parseUartPacket() {
   }
 }
 
-void parseUsbPacket() {
-  commandPacketHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
-  commandPacketType = commandPacketHeader & 0xFFFFF000UL;
+uint8_t parseUsbPacket() {
+  uint8_t successfullyParsed = 0;
   
-  if (commandPacketType == BOARD_COMMAND_TYPE_CODE) {
+  //commandPacketHeader = gsControl.usb->rxBuffer[0] | gsControl.usb->rxBuffer[1] << 8 | gsControl.usb->rxBuffer[2] << 16 | gsControl.usb->rxBuffer[3] << 24;
+  currentBoardCommand.data[0] = gsControl.usb->rxBuffer[0];
+  currentBoardCommand.data[1] = gsControl.usb->rxBuffer[1];
+  currentBoardCommand.data[2] = gsControl.usb->rxBuffer[2];
+  currentBoardCommand.data[3] = gsControl.usb->rxBuffer[3];
+  
+  if (currentBoardCommand.fields.header.bits.type == BOARD_COMMAND_TYPE_CODE) {
+    // CHECK CRC
     parseBoardCommandPacket();
+    successfullyParsed = 1;
   }
+  return successfullyParsed;
 }
 
 void parseCommandResponsePacket() {
@@ -466,6 +472,17 @@ void initButton(){
     gsControl.buttons[i].delayBetweenReads_ms = 4;
     gsControl.buttons[i].init((struct Button*)&gsControl.buttons[i]);
     gsControl.buttons[i].gpio = &gsControl.gpios[i];
+  }
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if(huart->Instance == USART1)
+  {
+    // Handle UART RX complete callback
+    //HAL_UART_Transmit_DMA(&huart1, uartRxBuffer, sizeof(uartRxBuffer)); // Echo back received data
+    gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer));
+    HAL_UART_Receive_DMA(&huart, uartBuffer, sizeof(uartBuffer));
   }
 }
 
