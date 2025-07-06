@@ -248,10 +248,10 @@ void handleIncomingCommand() {
           sendBoardCommand();
         }
         break;
-      case FILLING_STATION_COMMAND_ALLOW_FILL:
+      /*case FILLING_STATION_COMMAND_ALLOW_FILL:
         if (checkAllowFill()) {
           sendBoardCommand();
-        }
+        }*/
       default:
         break;
     }
@@ -469,7 +469,7 @@ void initButton(){
   }
 }
 
-void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
+/*void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
   if (huart->Instance == USART1) {
     telemetryPacketHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
     telemetryPacketType = telemetryPacketHeader & 0xFFFFF000UL;
@@ -497,4 +497,4 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   if (huart->Instance == USART1) {
     HAL_UART_Receive_IT((UART_HandleTypeDef*)gsControl.telecommunication->uart->externalHandle, uartBuffer, sizeof(uartBuffer));
   }
-}
+}*/

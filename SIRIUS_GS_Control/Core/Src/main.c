@@ -52,6 +52,8 @@ DMA_HandleTypeDef hdma_sdio_tx;
 SPI_HandleTypeDef hspi2;
 
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_rx;
+DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
 GPIO gpios[GS_CONTROL_GPIO_AMOUNT] = {0};
@@ -60,6 +62,9 @@ volatile USB usb                   = {0};
 Telecommunication telecom          = {0};
 Button buttons[GS_CONTROL_BUTTON_AMOUNT] = {0};
 
+
+uint8_t uartRxBuffer[44] = {0};
+uint8_t uartTxBuffer[44] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -84,6 +89,22 @@ static void setupDataBridge();
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if(huart->Instance == USART1)
+  {
+    // Handle UART RX complete callback
+    //HAL_UART_Transmit_DMA(&huart1, uartRxBuffer, sizeof(uartRxBuffer)); // Echo back received data
+    HAL_UART_Receive_DMA(&huart1, uartRxBuffer, sizeof(uartRxBuffer));
+  }
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+    if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE)) {
+        __HAL_UART_CLEAR_OREFLAG(huart); // Clear the overrun flag
+        HAL_UART_Receive_DMA(huart, uartRxBuffer, sizeof(uartRxBuffer)); // Re-enable interrupt
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -118,9 +139,9 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
-  //MX_SDIO_SD_Init();
+  MX_SDIO_SD_Init();
   MX_SPI2_Init();
-  //MX_FATFS_Init();
+  MX_FATFS_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
 
@@ -134,14 +155,41 @@ int main(void)
   setupTelecommunication();
   
   GSControl_init(gpios, &uart, &usb, &telecom, &buttons);
+
+  // Enable UART receive interrupt
+  HAL_UART_Receive_DMA(&huart1, uartRxBuffer, sizeof(uartRxBuffer));
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_UART_Transmit_DMA(&huart1, "b", 2);
+  HAL_Delay(50);
 
   while (1)
-  { 
-    GSControl_tick(HAL_GetTick());
+  {
+    BoardCommand cmd = {
+      .fields = {
+        .header = {
+          .bits = {
+            .type = BOARD_COMMAND_TYPE_CODE,
+            .commandIndex = 0,
+            .boardId = TELEMETRY_ENGINE_BOARD_ID,
+            .commandCode = BOARD_COMMAND_CODE_UNSAFE
+          }
+        },
+        .value = 0,
+        .padding = {0},
+        .crc = 0 // CRC will be calculated by HAL_CRC_Accumulate
+      }
+    };
+    HAL_UART_Transmit_DMA(&huart1, cmd.data, sizeof(BoardCommand));
+    HAL_Delay(500);
+    //HAL_UART_Receive(&huart1, uartRxBuffer, sizeof(uartRxBuffer), HAL_MAX_DELAY);
+    //GSControl_tick(HAL_GetTick());
+    /*if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE)) {
+        __HAL_UART_CLEAR_OREFLAG(&huart1); // Clear the overrun flag
+        HAL_UART_Receive_IT(&huart1, uartRxBuffer, sizeof(uartRxBuffer)); // Re-enable interrupt
+    }*/
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -329,12 +377,18 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA2_CLK_ENABLE();
 
   /* DMA interrupt init */
+  /* DMA2_Stream2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream2_IRQn);
   /* DMA2_Stream3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
   /* DMA2_Stream6_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream6_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream6_IRQn);
+  /* DMA2_Stream7_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 
 }
 
