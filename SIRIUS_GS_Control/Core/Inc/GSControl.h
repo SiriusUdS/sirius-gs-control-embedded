@@ -42,7 +42,8 @@ typedef struct {
   Button* buttons;
 
   uint32_t communicationTimestampTarget_ms;
-  uint8_t packetsReadyToSend;
+  uint8_t uartRxHalfReady;
+  uint8_t uartRxCpltReady;
 
   CRC_HandleTypeDef* hcrc;
 

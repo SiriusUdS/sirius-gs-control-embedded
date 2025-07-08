@@ -27,7 +27,7 @@ GSControlStatusPacket currentGSControlStatusPacket = {
   }
 };
 
-uint8_t uartBuffer[880] = {0};
+uint8_t uartBuffer[2048] = {0};
 
 uint8_t testMessage[] = "LETS GO BRANDON";
 
@@ -90,7 +90,8 @@ void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunicatio
   gsControl.telecommunication = telecom;
   gsControl.buttons = buttons;
 
-  gsControl.packetsReadyToSend = 0;
+  gsControl.uartRxHalfReady = 0;
+  gsControl.uartRxCpltReady = 0;
 
   initTelecom();
 
@@ -105,13 +106,12 @@ void GSControl_tick(uint32_t timestamp_ms) {
     gsControl.buttons[i].tick((struct Button*)&gsControl.buttons[i], timestamp_ms);
   }
   gsControl.telecommunication->tick((struct Telecommunication*)gsControl.telecommunication, timestamp_ms);
-
+  
   updateButtonStates();
   handleIncomingCommand();
   handleIncomingPackets();
   handleCommunication(timestamp_ms);
   GSControl_execute(timestamp_ms);
-  //HAL_UART_Receive((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer), 1000);
 }
 
 
@@ -206,10 +206,16 @@ void updateButtonStates() {
 }
 
 void handleIncomingPackets() {
-  if (gsControl.packetsReadyToSend == 1) {
-    gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer));
-    HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer));
-    gsControl.packetsReadyToSend = 0;
+  if (gsControl.uartRxHalfReady == 1) {
+    gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer) / 2);
+    //HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer) / 2);
+    gsControl.uartRxHalfReady = 0;
+  }
+
+  if (gsControl.uartRxCpltReady == 1) {
+    gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer + (sizeof(uartBuffer) / 2), sizeof(uartBuffer) / 2);
+    //HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer + (sizeof(uartBuffer) / 2), sizeof(uartBuffer) / 2);
+    gsControl.uartRxCpltReady = 0;
   }
 }
 
@@ -473,6 +479,12 @@ void initButton(){
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   if(huart->Instance == USART1) {
-    gsControl.packetsReadyToSend = 1;
+    gsControl.uartRxCpltReady = 1;
+  }
+}
+
+void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
+  if(huart->Instance == USART1) {
+    gsControl.uartRxHalfReady = 1;
   }
 }
