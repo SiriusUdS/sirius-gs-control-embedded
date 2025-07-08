@@ -77,8 +77,6 @@ void Error_Handler(void);
 #define GPIO_OUTPUT_EXT_FLASH_WP_GPIO_Port GPIOD
 #define SD_CARD_DETECT_PD_Pin GPIO_PIN_15
 #define SD_CARD_DETECT_PD_GPIO_Port GPIOA
-#define SDIO_D0_Pin GPIO_PIN_4
-#define SDIO_D0_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

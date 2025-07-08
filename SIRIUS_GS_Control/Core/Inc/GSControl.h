@@ -16,6 +16,7 @@
 #include "../sirius-embedded-common/sirius-headers-common/Telecommunication/CommandResponse.h"
 #include "../sirius-embedded-common/sirius-headers-common/Telecommunication/GSCommand.h"
 #include "../sirius-embedded-common/sirius-headers-common/Telecommunication/TelemetryPacket.h"
+#include "../sirius-embedded-common/sirius-headers-common/Telecommunication/PacketHeaderVariable.h"
 
 #include "../sirius-embedded-common/Inc/Device/Telecommunication/xbee.h"
 

@@ -16,7 +16,7 @@ GSControlStatusPacket currentGSControlStatusPacket = {
     .header = {
       .bits = {
         .type = STATUS_TYPE_CODE,
-        .boardId = TELEMETRY_GS_CONTROL_BOARD_ID,
+        .boardId = GS_CONTROL_BOARD_ID,
         .RESERVED = 0
       }
     },
@@ -288,7 +288,7 @@ void sendACKResponse() {
       .header = {
         .bits = {
           .type = COMMAND_RESPONSE_TYPE_CODE,
-          .boardId = TELEMETRY_GS_CONTROL_BOARD_ID,
+          .boardId = GS_CONTROL_BOARD_ID,
           .commandIndex = currentBoardCommand.fields.header.bits.commandIndex,
           .response = RESPONSE_CODE_OK
         }
@@ -368,10 +368,10 @@ void parseBoardCommandPacket() {
 
 void parseTelemetryPacket(uint32_t headerValue) {
   switch (headerValue & 0x000000D0UL) {
-    case TELEMETRY_ENGINE_BOARD_ID:
+    case ENGINE_BOARD_ID:
       parseEngineTelemetryPacket();
       break;
-    case TELEMETRY_FILLING_STATION_BOARD_ID:
+    case FILLING_STATION_BOARD_ID:
       parseFillingStationTelemetryPacket();
       break;
     default:
@@ -382,10 +382,10 @@ void parseTelemetryPacket(uint32_t headerValue) {
 
 void parseStatusPacket(uint32_t headerValue) {
   switch (headerValue & 0x000000D0UL) {
-    case TELEMETRY_ENGINE_BOARD_ID:
+    case ENGINE_BOARD_ID:
       parseEngineStatusPacket();
       break;
-    case TELEMETRY_FILLING_STATION_BOARD_ID:
+    case FILLING_STATION_BOARD_ID:
       parseFillingStationStatusPacket();
       break;
     default:
@@ -479,39 +479,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if(huart->Instance == USART1)
   {
-    // Handle UART RX complete callback
-    //HAL_UART_Transmit_DMA(&huart1, uartRxBuffer, sizeof(uartRxBuffer)); // Echo back received data
     gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer));
     HAL_UART_Receive_DMA(&huart, uartBuffer, sizeof(uartBuffer));
   }
 }
-
-/*void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
-  if (huart->Instance == USART1) {
-    telemetryPacketHeader = uartBuffer[0] & uartBuffer[1] << 8 & uartBuffer[2] << 16 & uartBuffer[3] << 24;
-    telemetryPacketType = telemetryPacketHeader & 0xFFFFF000UL;
-  }
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-  if (huart->Instance == USART1) {
-    if (gsControl.uart->status.bits.rxDataReady == 0) {
-      // CHECK CRC, IF NOT GOOD, RAISE FLAG FOR NEXT STATUS PACKET
-      gsControl.uart->status.bits.rxDataReady = 1;
-    }
-  }
-}
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-  if (huart->Instance == USART1) {
-    if (gsControl.uart->status.bits.txReady == 0) {
-      gsControl.uart->status.bits.txReady = 1;
-    }
-  }
-}
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
-  if (huart->Instance == USART1) {
-    HAL_UART_Receive_IT((UART_HandleTypeDef*)gsControl.telecommunication->uart->externalHandle, uartBuffer, sizeof(uartBuffer));
-  }
-}*/
