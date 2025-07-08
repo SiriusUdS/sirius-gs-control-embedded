@@ -77,7 +77,7 @@ static void parseEngineStatusPacket();
 static void parseFillingStationTelemetryPacket();
 static void parseFillingStationStatusPacket();
 
-void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunication* telecom, Button* buttons) {
+void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunication* telecom, Button* buttons, CRC_HandleTypeDef* hcrc) {
   gsControl.errorStatus.value  = 0;
   gsControl.status.value       = 0;
   gsControl.currentState       = GS_CONTROL_STATE_INIT;
@@ -85,6 +85,7 @@ void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunicatio
   gsControl.gpios  = gpios;
   gsControl.uart   = uart;
   gsControl.usb    = usb;
+  gsControl.hcrc   = hcrc;
 
   gsControl.telecommunication = telecom;
   gsControl.buttons = buttons;
@@ -266,7 +267,7 @@ void sendStatusPacket(uint32_t timestamp_ms) {
   currentGSControlStatusPacket.fields.status.value = gsControl.status.value;
   currentGSControlStatusPacket.fields.errorStatus.value = gsControl.errorStatus.value;
   currentGSControlStatusPacket.fields.timestamp_ms = timestamp_ms;
-  currentGSControlStatusPacket.fields.crc = 0; // CRC
+  //currentGSControlStatusPacket.fields.crc = HAL_CRC_Calculate(); // CRC
 
   gsControl.usb->transmit((struct USB*)gsControl.usb, currentGSControlStatusPacket.data, sizeof(GSControlStatusPacket));
 }
@@ -286,9 +287,11 @@ void sendACKResponse() {
           .response = RESPONSE_CODE_OK
         }
       },
-      .crc = 0 // CRC
+      .crc = 0
     }
   };
+
+  commandResponse.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, commandResponse.data32, (sizeof(CommandResponse) / sizeof(uint32_t)) - sizeof(uint32_t));
 
   gsControl.usb->transmit((struct USB*)gsControl.usb, commandResponse.data, sizeof(CommandResponse));
 }

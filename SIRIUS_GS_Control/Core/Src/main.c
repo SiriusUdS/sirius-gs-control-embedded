@@ -76,19 +76,12 @@ static void setupUART();
 static void setupUSB();
 static void setupTelecommunication();
 static void setupButton();
-static void setupDataBridge();
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-/*void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
-    if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE)) {
-        __HAL_UART_CLEAR_OREFLAG(huart); // Clear the overrun flag
-        HAL_UART_Receive_DMA(huart, uartRxBuffer, sizeof(uartRxBuffer)); // Re-enable interrupt
-    }
-}*/
 /* USER CODE END 0 */
 
 /**
@@ -136,14 +129,15 @@ int main(void)
   // Setup Sensors/Devices
   setupTelecommunication();
   
-  GSControl_init(gpios, &uart, &usb, &telecom, &buttons);
+  GSControl_init(gpios, &uart, &usb, &telecom, buttons, &hcrc);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  const uint8_t bootLoaderBypassMessage = 0x62; // 'b'
   for (uint8_t i = 0; i < 4; i++) {
-    HAL_UART_Transmit_DMA(&huart1, "b", 2);
+    HAL_UART_Transmit_DMA(&huart1, &bootLoaderBypassMessage, sizeof(bootLoaderBypassMessage) - 1);
     HAL_Delay(50);
   }
 

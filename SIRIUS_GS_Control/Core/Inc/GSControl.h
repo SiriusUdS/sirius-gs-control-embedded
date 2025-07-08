@@ -44,12 +44,14 @@ typedef struct {
   uint32_t communicationTimestampTarget_ms;
   uint8_t packetsReadyToSend;
 
+  CRC_HandleTypeDef* hcrc;
+
   GSControlErrorStatus errorStatus;
   GSControlStatus      status;
 }
 GSControl;
 
-void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunication* telecom, Button* buttons);
+void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunication* telecom, Button* buttons, CRC_HandleTypeDef* hcrc);
 
 void GSControl_tick(uint32_t timestamp_ms);
 
