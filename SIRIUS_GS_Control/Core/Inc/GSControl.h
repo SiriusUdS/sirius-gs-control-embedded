@@ -42,6 +42,7 @@ typedef struct {
   Button* buttons;
 
   uint32_t communicationTimestampTarget_ms;
+  uint8_t packetsReadyToSend;
 
   GSControlErrorStatus errorStatus;
   GSControlStatus      status;

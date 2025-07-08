@@ -89,6 +89,8 @@ void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunicatio
   gsControl.telecommunication = telecom;
   gsControl.buttons = buttons;
 
+  gsControl.packetsReadyToSend = 0;
+
   initTelecom();
 
   initGPIOs();
@@ -103,8 +105,12 @@ void GSControl_tick(uint32_t timestamp_ms) {
   }
   gsControl.telecommunication->tick((struct Telecommunication*)gsControl.telecommunication, timestamp_ms);
 
+  updateButtonStates();
   handleIncomingCommand();
+  handleIncomingPackets();
+  handleCommunication(timestamp_ms);
   GSControl_execute(timestamp_ms);
+  //HAL_UART_Receive((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer), 1000);
 }
 
 
@@ -128,27 +134,16 @@ void GSControl_execute(uint32_t timestamp_ms) {
 
 void executeInit(uint32_t timestamp_ms) {
   gsControl.telecommunication->config((struct Telecommunication*) gsControl.telecommunication);
-  HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer)); // Start the DMA
-  //gsControl.uart->status.bits.txReady = 1;
+  HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer));
   gsControl.currentState = GS_CONTROL_STATE_IDLE;
 }
 
 void executeIdle(uint32_t timestamp_ms) {
-  updateButtonStates();
-  //handleIncomingPackets();
-  handleCommunication(timestamp_ms);
-  
-  /*if (gsControl.uart->status.bits.txReady == 1) {
-    HAL_UART_Transmit_IT((UART_HandleTypeDef*)gsControl.uart->externalHandle, testMessage, sizeof(testMessage));
-    gsControl.uart->status.bits.txReady = 0;
-    HAL_Delay(200);
-  }*/
+  //handleCommunication(timestamp_ms);
 }
 
 void executeAbort(uint32_t timestamp_ms) {
-  updateButtonStates();
-  //handleIncomingPackets();
-  handleCommunication(timestamp_ms);
+  //handleCommunication(timestamp_ms);
 }
 
 void updateButtonStates() {
@@ -209,13 +204,11 @@ void updateButtonStates() {
   }
 }
 
-// PUT INTERRUPT BASED
 void handleIncomingPackets() {
-  
-  if (gsControl.telecommunication->uart->status.bits.rxDataReady == 1) {
-    // CHECK CRC
-    //parseUartPacket();
-    //gsControl.telecommunication->uart->status.bits.rxDataReady = 0;
+  if (gsControl.packetsReadyToSend == 1) {
+    gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer));
+    HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer));
+    gsControl.packetsReadyToSend = 0;
   }
 }
 
@@ -451,7 +444,7 @@ void initUSB() {
   gsControl.usb->init((struct USB*)gsControl.usb);
 }
 
-void initTelecom(){
+void initTelecom() {
   if(gsControl.telecommunication->init == FUNCTION_NULL_POINTER){
     gsControl.telecommunication->errorStatus.bits.nullFunctionPointer = 1;
     return;
@@ -475,11 +468,8 @@ void initButton(){
   }
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  if(huart->Instance == USART1)
-  {
-    gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer));
-    HAL_UART_Receive_DMA(&huart, uartBuffer, sizeof(uartBuffer));
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+  if(huart->Instance == USART1) {
+    gsControl.packetsReadyToSend = 1;
   }
 }

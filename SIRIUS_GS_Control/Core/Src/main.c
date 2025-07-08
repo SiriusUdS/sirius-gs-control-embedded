@@ -138,8 +138,6 @@ int main(void)
   
   GSControl_init(gpios, &uart, &usb, &telecom, &buttons);
 
-  // Enable UART receive interrupt
-  HAL_UART_Receive_DMA(&huart1, uartRxBuffer, sizeof(uartRxBuffer));
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -151,29 +149,7 @@ int main(void)
 
   while (1)
   {
-    /*BoardCommand cmd = {
-      .fields = {
-        .header = {
-          .bits = {
-            .type = BOARD_COMMAND_TYPE_CODE,
-            .commandIndex = 0,
-            .boardId = TELEMETRY_ENGINE_BOARD_ID,
-            .commandCode = BOARD_COMMAND_CODE_UNSAFE
-          }
-        },
-        .value = 0,
-        .padding = {0},
-        .crc = 0 // CRC will be calculated by HAL_CRC_Accumulate
-      }
-    };
-    HAL_UART_Transmit_DMA(&huart1, cmd.data, sizeof(BoardCommand));
-    HAL_Delay(500);*/
-    //HAL_UART_Receive(&huart1, uartRxBuffer, sizeof(uartRxBuffer), HAL_MAX_DELAY);
     GSControl_tick(HAL_GetTick());
-    /*if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE)) {
-        __HAL_UART_CLEAR_OREFLAG(&huart1); // Clear the overrun flag
-        HAL_UART_Receive_IT(&huart1, uartRxBuffer, sizeof(uartRxBuffer)); // Re-enable interrupt
-    }*/
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
