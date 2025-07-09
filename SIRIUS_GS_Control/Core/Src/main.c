@@ -388,11 +388,11 @@ void setupGPIOs() {
   gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_ARM_IGNITER_INDEX].init = (GPIO_init)GPIOHAL_init;
 
-  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].errorStatus.bits.notInitialized = 1;
-  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].externalHandle = GPIOE;
-  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].pinNumber = GPIO_PIN_10;
-  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].mode = GPIO_INPUT_MODE;
-  gpios[GS_CONTROL_GPIO_UNUSED_INDEX].init = (GPIO_init)GPIOHAL_init;
+  gpios[GS_CONTROL_BUTTON_ALLOW_DUMP_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_BUTTON_ALLOW_DUMP_INDEX].externalHandle = GPIOE;
+  gpios[GS_CONTROL_BUTTON_ALLOW_DUMP_INDEX].pinNumber = GPIO_PIN_10;
+  gpios[GS_CONTROL_BUTTON_ALLOW_DUMP_INDEX].mode = GPIO_INPUT_MODE;
+  gpios[GS_CONTROL_BUTTON_ALLOW_DUMP_INDEX].init = (GPIO_init)GPIOHAL_init;
 
   gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].errorStatus.bits.notInitialized = 1;
   gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].externalHandle = GPIOA;
@@ -411,6 +411,13 @@ void setupGPIOs() {
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].pinNumber = GPIO_PIN_2;
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].init = (GPIO_init)GPIOHAL_init;
+
+  gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].errorStatus.bits.notInitialized = 1;
+  gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].externalHandle = GPIOA;
+  gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].pinNumber = GPIO_PIN_3;
+  gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].mode = GPIO_INPUT_MODE;
+  gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].init = (GPIO_init)GPIOHAL_init;
+
 }
 
 void setupUART() {
