@@ -139,10 +139,123 @@ void executeInit(uint32_t timestamp_ms) {
   gsControl.currentState = GS_CONTROL_STATE_IDLE;
 }
 
+void SendCommandTest(uint32_t commandCode) {
+    
+    BoardCommand cmd = {
+      .fields = {
+        .header = {
+          .bits = {
+            .type = BOARD_COMMAND_TYPE_CODE,
+            .commandIndex = 0,
+            .boardId = ENGINE_BOARD_ID,
+            .commandCode = commandCode
+          }
+        },
+        .value = 0,
+        .padding = {0},
+        .crc = 0 // CRC will be calculated by HAL_CRC_Accumulate
+      }
+    };
+
+    HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, cmd.data, sizeof(BoardCommand));
+
+}
+
+#define SEND_DELAY_MS 50
+
+static uint32_t lastSendTime = 0;
+
+int trySendCommand(uint32_t code) {
+    uint32_t now = HAL_GetTick();
+    if ((int)(now - lastSendTime) >= SEND_DELAY_MS) {
+        SendCommandTest(code);
+        lastSendTime = now;
+        return 1;
+    }
+    return 0;
+}
+
+#define STATE_UNSAFE         0
+#define STATE_SAFE           1
+#define STATE_ARM_VALVE      2
+#define STATE_ARM_IGNITER    3
+#define STATE_READY_TO_FIRE  4
+#define STATE_FIRED          5
+
+static uint8_t currentState = STATE_UNSAFE;
+
+//flags
+static int sentArmValveCommand = 0;
+static int sentArmIgniterCommand = 0;
+
+
 void executeIdle(uint32_t timestamp_ms) {
-  //HAL_UART_Receive((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer), 100);
-  //uint8_t test = 0;
-  //handleCommunication(timestamp_ms);
+    int emergency   = gsControl.buttons[GS_CONTROL_BUTTON_EMERGENCY_STOP_INDEX].status.bits.isPressed;
+    int armValve    = gsControl.buttons[GS_CONTROL_BUTTON_ARM_VALVE_INDEX].status.bits.isPressed;
+    int armIgniter  = gsControl.buttons[GS_CONTROL_BUTTON_ARM_IGNITER_INDEX].status.bits.isPressed;
+    int ignite      = gsControl.buttons[GS_CONTROL_BUTTON_FIRE_IGNITER_INDEX].status.bits.isPressed;
+    int startValve  = gsControl.buttons[GS_CONTROL_BUTTON_VALVE_START_INDEX].status.bits.isPressed;
+
+  switch (currentState) {
+      case STATE_SAFE:
+          if (emergency) {
+              if (trySendCommand(BOARD_COMMAND_CODE_UNSAFE)) {
+                  currentState = STATE_UNSAFE;
+              }
+          }
+          break;
+
+      case STATE_UNSAFE:
+          if (!emergency) {
+              if (trySendCommand(BOARD_COMMAND_CODE_SAFE)) {
+                  currentState = STATE_SAFE;
+
+                  sentArmValveCommand = 0;
+                  sentArmIgniterCommand = 0;
+              }
+              break;
+          }
+
+          if (armValve && !sentArmValveCommand) {
+              if (trySendCommand(ENGINE_COMMAND_CODE_ARM_VALVE)) {
+                  sentArmValveCommand = 1;
+              }
+          }
+
+          if (armIgniter && !sentArmIgniterCommand) {
+              if (trySendCommand(ENGINE_COMMAND_CODE_ARM_IGNITER)) {
+                  sentArmIgniterCommand = 1;
+              }
+          }
+
+          if (sentArmValveCommand && sentArmIgniterCommand && ignite) {
+              if (trySendCommand(ENGINE_COMMAND_CODE_FIRE_IGNITER)) {
+                  currentState = STATE_READY_TO_FIRE;
+              }
+          }
+
+          break;
+
+      case STATE_READY_TO_FIRE:
+          if (emergency) {
+              if (trySendCommand(BOARD_COMMAND_CODE_UNSAFE)) {
+                  currentState = STATE_UNSAFE;
+              }
+              break;
+          }
+
+          if (startValve) {
+              if (trySendCommand(ENGINE_COMMAND_CODE_OPEN_VALVE)) {
+                  currentState = STATE_FIRED;
+              }
+          }
+
+          break;
+
+      case STATE_FIRED:
+          break;
+  }
+
 }
 
 void executeAbort(uint32_t timestamp_ms) {
