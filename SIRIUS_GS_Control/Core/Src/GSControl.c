@@ -140,6 +140,8 @@ void executeInit(uint32_t timestamp_ms) {
 }
 
 void executeIdle(uint32_t timestamp_ms) {
+  //HAL_UART_Receive((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer), 100);
+  //uint8_t test = 0;
   //handleCommunication(timestamp_ms);
 }
 

@@ -137,7 +137,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   const uint8_t bootLoaderBypassMessage = 0x62; // 'b'
   for (uint8_t i = 0; i < 4; i++) {
-    HAL_UART_Transmit_DMA(&huart1, &bootLoaderBypassMessage, sizeof(bootLoaderBypassMessage) - 1);
+    HAL_UART_Transmit_DMA(&huart1, &bootLoaderBypassMessage, sizeof(bootLoaderBypassMessage));
     HAL_Delay(50);
   }
 
@@ -396,19 +396,19 @@ void setupGPIOs() {
 
   gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].errorStatus.bits.notInitialized = 1;
   gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].pinNumber = GPIO_PIN_4;
+  gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].pinNumber = GPIO_PIN_0;
   gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_EMERGENCY_STOP_INDEX].init = (GPIO_init)GPIOHAL_init;
 
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].errorStatus.bits.notInitialized = 1;
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].pinNumber = GPIO_PIN_5;
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].pinNumber = GPIO_PIN_1;
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].init = (GPIO_init)GPIOHAL_init;
 
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].errorStatus.bits.notInitialized = 1;
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].pinNumber = GPIO_PIN_6;
+  gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].pinNumber = GPIO_PIN_2;
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].init = (GPIO_init)GPIOHAL_init;
 }
