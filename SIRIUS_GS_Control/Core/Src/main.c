@@ -402,22 +402,21 @@ void setupGPIOs() {
 
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].errorStatus.bits.notInitialized = 1;
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].pinNumber = GPIO_PIN_1;
+  gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].pinNumber = GPIO_PIN_3;
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_FIRE_IGNITER_INDEX].init = (GPIO_init)GPIOHAL_init;
 
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].errorStatus.bits.notInitialized = 1;
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].pinNumber = GPIO_PIN_2;
+  gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].pinNumber = GPIO_PIN_1;
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_GPIO_UNSAFE_INDEX].init = (GPIO_init)GPIOHAL_init;
 
   gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].errorStatus.bits.notInitialized = 1;
   gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].externalHandle = GPIOA;
-  gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].pinNumber = GPIO_PIN_3;
+  gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].pinNumber = GPIO_PIN_2;
   gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].mode = GPIO_INPUT_MODE;
   gpios[GS_CONTROL_BUTTON_VALVE_START_INDEX].init = (GPIO_init)GPIOHAL_init;
-
 }
 
 void setupUART() {

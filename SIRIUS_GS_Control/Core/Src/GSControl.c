@@ -2,14 +2,23 @@
 
 static GSControl gsControl = {0};
 
-BoardCommand currentBoardCommand = {0};
+BoardCommand currentReceivedBoardCommand = {0};
 CommandResponse currentResponse = {0};
-GSCommand currentGSCommand = {0};
-
-EngineTelemetryPacket currentEngineTelemetryPacket = {0};
-EngineStatusPacket currentEngineStatusPacket = {0};
-FillingStationTelemetryPacket currentFillingStationTelemetryPacket = {0};
-FillingStationStatusPacket currentFillingStationStatusPacket = {0};
+BoardCommand currentCommand = {
+  .fields = {
+    .header = {
+      .bits = {
+        .type = BOARD_COMMAND_UNICAST_TYPE_CODE,
+        .commandIndex = 0,
+        .boardId = GS_CONTROL_BOARD_ID,
+        .commandCode = 0
+      }
+    },
+    .value = 0,
+    .padding = {0},
+    .crc = 0
+  }
+};
 
 GSControlStatusPacket currentGSControlStatusPacket = {
   .fields = {
@@ -22,26 +31,17 @@ GSControlStatusPacket currentGSControlStatusPacket = {
     },
     .errorStatus = 0,
     .status = 0,
+    .padding = {0},
     .timestamp_ms = 0,
     .crc = 0
   }
 };
 
-uint8_t uartBuffer[2048] = {0};
-
-uint8_t testMessage[] = "LETS GO BRANDON";
-
-uint32_t telemetryPacketHeader = 0;
-uint32_t telemetryPacketType = 0;
-
-uint32_t commandPacketHeader = 0;
-uint32_t commandPacketType = 0;
-
-uint8_t engineState;
-uint8_t fillingStationState;
+uint8_t uartBuffer[GS_CONTROL_TELECOMMUNICATION_UART_BUFFER_SIZE] = {0};
 
 static void executeInit(uint32_t timestamp_ms);
-static void executeIdle(uint32_t timestamp_ms);
+static void executeSafe(uint32_t timestamp_ms);
+static void executeUnsafe(uint32_t timestamp_ms);
 static void executeAbort(uint32_t timestamp_ms);
 
 static void initGPIOs();
@@ -56,26 +56,19 @@ static void handleIncomingPackets();
 static void handleIncomingCommand();
 static void handleCommunication(uint32_t timestamp_ms);
 static void sendStatusPacket(uint32_t timestamp_ms);
-static void sendBoardCommand();
+
+static void handleCurrentCommand(uint32_t timestamp_ms);
+static void sendReceivedBoardCommand();
+static void sendSafeCommand(uint32_t timestamp_ms);
+static void sendUnsafeCommand(uint32_t timestamp_ms);
+static void sendIgniteCommand(uint32_t timestamp_ms);
+static void sendLaunchCommand(uint32_t timestamp_ms);
 static void sendACKResponse();
 
 static uint8_t checkUnsafe();
-static uint8_t checkAllowFill();
-/*static uint8_t check();
-static uint8_t checkUnsafe();*/
 
-static void parseUartPacket();
 static uint8_t parseUsbPacket();
-
-static void parseCommandResponsePacket();
-static void parseBoardCommandPacket();
-static void parseTelemetryPacket(uint32_t headerValue);
-static void parseStatusPacket(uint32_t headerValue);
-
-static void parseEngineTelemetryPacket();
-static void parseEngineStatusPacket();
-static void parseFillingStationTelemetryPacket();
-static void parseFillingStationStatusPacket();
+static uint8_t parseBoardCommandPacket();
 
 void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunication* telecom, Button* buttons, CRC_HandleTypeDef* hcrc) {
   gsControl.errorStatus.value  = 0;
@@ -89,6 +82,10 @@ void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunicatio
 
   gsControl.telecommunication = telecom;
   gsControl.buttons = buttons;
+
+  gsControl.communicationTimestampTarget_ms = 0;
+  gsControl.commandTimestampTarget_ms = 0;
+  gsControl.commandSentCount = GS_CONTROL_SEND_COMMAND_AMOUNT;
 
   gsControl.uartRxHalfReady = 0;
   gsControl.uartRxCpltReady = 0;
@@ -108,27 +105,30 @@ void GSControl_tick(uint32_t timestamp_ms) {
   gsControl.telecommunication->tick((struct Telecommunication*)gsControl.telecommunication, timestamp_ms);
   
   updateButtonStates();
+  handleCurrentCommand(timestamp_ms);
   handleIncomingCommand();
   handleIncomingPackets();
   handleCommunication(timestamp_ms);
   GSControl_execute(timestamp_ms);
 }
 
-
 void GSControl_execute(uint32_t timestamp_ms) {
   switch (gsControl.currentState) {
     case GS_CONTROL_STATE_INIT:
       executeInit(timestamp_ms);
       break;
-    case GS_CONTROL_STATE_IDLE:
-      executeIdle(timestamp_ms);
+    case GS_CONTROL_STATE_SAFE:
+      executeSafe(timestamp_ms);
+      break;
+    case GS_CONTROL_STATE_UNSAFE:
+      executeUnsafe(timestamp_ms);
       break;
     case GS_CONTROL_STATE_ABORT:
       executeAbort(timestamp_ms);
       break;
     default:
       gsControl.errorStatus.bits.invalidState = 1;
-      executeIdle(timestamp_ms);
+      executeSafe(timestamp_ms);
       break;
   }
 }
@@ -136,130 +136,47 @@ void GSControl_execute(uint32_t timestamp_ms) {
 void executeInit(uint32_t timestamp_ms) {
   gsControl.telecommunication->config((struct Telecommunication*) gsControl.telecommunication);
   HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer));
-  gsControl.currentState = GS_CONTROL_STATE_IDLE;
+  gsControl.currentState = GS_CONTROL_STATE_SAFE;
 }
 
-void SendCommandTest(uint32_t commandCode) {
-    
-    BoardCommand cmd = {
-      .fields = {
-        .header = {
-          .bits = {
-            .type = BOARD_COMMAND_TYPE_CODE,
-            .commandIndex = 0,
-            .boardId = ENGINE_BOARD_ID,
-            .commandCode = commandCode
-          }
-        },
-        .value = 0,
-        .padding = {0},
-        .crc = 0 // CRC will be calculated by HAL_CRC_Accumulate
-      }
-    };
-
-    HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, cmd.data, sizeof(BoardCommand));
-
+void executeSafe(uint32_t timestamp_ms) {
+  if (gsControl.status.bits.isEmergencyStopButtonPressed) {
+    sendUnsafeCommand(timestamp_ms);
+    gsControl.currentState = GS_CONTROL_STATE_UNSAFE;
+  }
 }
 
-#define SEND_DELAY_MS 50
-
-static uint32_t lastSendTime = 0;
-
-int trySendCommand(uint32_t code) {
-    uint32_t now = HAL_GetTick();
-    if ((int)(now - lastSendTime) >= SEND_DELAY_MS) {
-        SendCommandTest(code);
-        lastSendTime = now;
-        return 1;
-    }
-    return 0;
-}
-
-#define STATE_UNSAFE         0
-#define STATE_SAFE           1
-#define STATE_ARM_VALVE      2
-#define STATE_ARM_IGNITER    3
-#define STATE_READY_TO_FIRE  4
-#define STATE_FIRED          5
-
-static uint8_t currentState = STATE_UNSAFE;
-
-//flags
-static int sentArmValveCommand = 0;
-static int sentArmIgniterCommand = 0;
-
-
-void executeIdle(uint32_t timestamp_ms) {
-    int emergency   = gsControl.buttons[GS_CONTROL_BUTTON_EMERGENCY_STOP_INDEX].status.bits.isPressed;
-    int armValve    = gsControl.buttons[GS_CONTROL_BUTTON_ARM_VALVE_INDEX].status.bits.isPressed;
-    int armIgniter  = gsControl.buttons[GS_CONTROL_BUTTON_ARM_IGNITER_INDEX].status.bits.isPressed;
-    int ignite      = gsControl.buttons[GS_CONTROL_BUTTON_FIRE_IGNITER_INDEX].status.bits.isPressed;
-    int startValve  = gsControl.buttons[GS_CONTROL_BUTTON_VALVE_START_INDEX].status.bits.isPressed;
-
-  switch (currentState) {
-      case STATE_SAFE:
-          if (emergency) {
-              if (trySendCommand(BOARD_COMMAND_CODE_UNSAFE)) {
-                  currentState = STATE_UNSAFE;
-              }
-          }
-          break;
-
-      case STATE_UNSAFE:
-          if (!emergency) {
-              if (trySendCommand(BOARD_COMMAND_CODE_SAFE)) {
-                  currentState = STATE_SAFE;
-
-                  sentArmValveCommand = 0;
-                  sentArmIgniterCommand = 0;
-              }
-              break;
-          }
-
-          if (armValve && !sentArmValveCommand) {
-              if (trySendCommand(ENGINE_COMMAND_CODE_ARM_VALVE)) {
-                  sentArmValveCommand = 1;
-              }
-          }
-
-          if (armIgniter && !sentArmIgniterCommand) {
-              if (trySendCommand(ENGINE_COMMAND_CODE_ARM_IGNITER)) {
-                  sentArmIgniterCommand = 1;
-              }
-          }
-
-          if (sentArmValveCommand && sentArmIgniterCommand && ignite) {
-              if (trySendCommand(ENGINE_COMMAND_CODE_FIRE_IGNITER)) {
-                  currentState = STATE_READY_TO_FIRE;
-              }
-          }
-
-          break;
-
-      case STATE_READY_TO_FIRE:
-          if (emergency) {
-              if (trySendCommand(BOARD_COMMAND_CODE_UNSAFE)) {
-                  currentState = STATE_UNSAFE;
-              }
-              break;
-          }
-
-          if (startValve) {
-              if (trySendCommand(ENGINE_COMMAND_CODE_OPEN_VALVE)) {
-                  currentState = STATE_FIRED;
-              }
-          }
-
-          break;
-
-      case STATE_FIRED:
-          break;
+void executeUnsafe(uint32_t timestamp_ms) {
+  if (!gsControl.status.bits.isEmergencyStopButtonPressed) {
+    sendSafeCommand(timestamp_ms);
+    gsControl.currentState = GS_CONTROL_STATE_SAFE;
   }
 
+  if (gsControl.status.bits.isFireIgniterButtonPressed) {
+    if (gsControl.status.bits.isArmIgniterSwitchOn) {
+      sendIgniteCommand(timestamp_ms);
+    }
+  }
+
+  if (gsControl.status.bits.isValveStartButtonPressed) {
+    if (gsControl.status.bits.isArmServoSwitchOn) {
+      sendLaunchCommand(timestamp_ms);
+    }
+  }
 }
 
 void executeAbort(uint32_t timestamp_ms) {
-  //handleCommunication(timestamp_ms);
+  // wait for reset command
+}
+
+void handleCurrentCommand(uint32_t timestamp_ms) {
+  if (gsControl.commandTimestampTarget_ms <= timestamp_ms) {
+    if (gsControl.commandSentCount < GS_CONTROL_SEND_COMMAND_AMOUNT) {
+      gsControl.commandSentCount++;
+      gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
+      HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentCommand.data, sizeof(BoardCommand));
+    }
+  }
 }
 
 void updateButtonStates() {
@@ -323,13 +240,11 @@ void updateButtonStates() {
 void handleIncomingPackets() {
   if (gsControl.uartRxHalfReady == 1) {
     gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer, sizeof(uartBuffer) / 2);
-    //HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer, sizeof(uartBuffer) / 2);
     gsControl.uartRxHalfReady = 0;
   }
 
   if (gsControl.uartRxCpltReady == 1) {
     gsControl.usb->transmit((struct USB*)gsControl.usb, uartBuffer + (sizeof(uartBuffer) / 2), sizeof(uartBuffer) / 2);
-    //HAL_UART_Receive_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, uartBuffer + (sizeof(uartBuffer) / 2), sizeof(uartBuffer) / 2);
     gsControl.uartRxCpltReady = 0;
   }
 }
@@ -337,39 +252,38 @@ void handleIncomingPackets() {
 void handleIncomingCommand() {
   if (gsControl.usb->status.bits.rxDataReady) {
     if (!parseUsbPacket()) {
-      //gsControl.errorStatus.bits.invalidCommand = 1;
       gsControl.usb->status.bits.rxDataReady = 0;
       return;
     }
 
-    switch (currentBoardCommand.fields.header.bits.commandCode)
+    switch (currentReceivedBoardCommand.fields.header.bits.commandCode)
     {
       case BOARD_COMMAND_CODE_ABORT:
-        sendBoardCommand();
+        sendReceivedBoardCommand();
         gsControl.status.bits.state = GS_CONTROL_STATE_ABORT;
         break;
       case BOARD_COMMAND_CODE_ACK:
-        sendBoardCommand();
+        sendReceivedBoardCommand();
         sendACKResponse();
         break;
       case BOARD_COMMAND_CODE_RESET:
-        if (gsControl.status.bits.state == GS_CONTROL_STATE_ABORT) {
-          gsControl.status.bits.state = GS_CONTROL_STATE_IDLE;
-          sendBoardCommand();
-        }
-        break;
-      case BOARD_COMMAND_CODE_UNSAFE:
         if (checkUnsafe()) {
-          sendBoardCommand();
+          if (gsControl.status.bits.state == GS_CONTROL_STATE_ABORT) {
+            gsControl.status.bits.state = GS_CONTROL_STATE_SAFE;
+            sendReceivedBoardCommand();
+          }
         }
         break;
-      case ENGINE_COMMAND_CODE_OPEN_VALVE:
-        sendBoardCommand();
+      case FILLING_STATION_COMMAND_CODE_OPEN_DUMP_VALVE_PCT:
+        if (checkUnsafe() && gsControl.status.bits.isAllowDumpSwitchOn) {
+          sendReceivedBoardCommand();
+        }
         break;
-      /*case FILLING_STATION_COMMAND_ALLOW_FILL:
-        if (checkAllowFill()) {
-          sendBoardCommand();
-        }*/
+      case FILLING_STATION_COMMAND_CODE_OPEN_FILL_VALVE_PCT:
+        if (checkUnsafe() && gsControl.status.bits.isAllowFillSwitchOn) {
+          sendReceivedBoardCommand();
+        }
+        break;
       default:
         break;
     }
@@ -388,13 +302,108 @@ void sendStatusPacket(uint32_t timestamp_ms) {
   currentGSControlStatusPacket.fields.status.value = gsControl.status.value;
   currentGSControlStatusPacket.fields.errorStatus.value = gsControl.errorStatus.value;
   currentGSControlStatusPacket.fields.timestamp_ms = timestamp_ms;
-  //currentGSControlStatusPacket.fields.crc = HAL_CRC_Calculate(); // CRC
-
+  currentGSControlStatusPacket.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, currentGSControlStatusPacket.data32, (sizeof(GSControlStatusPacket) / sizeof(uint32_t)) - sizeof(uint32_t));
   gsControl.usb->transmit((struct USB*)gsControl.usb, currentGSControlStatusPacket.data, sizeof(GSControlStatusPacket));
 }
 
-void sendBoardCommand() {
-  HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentBoardCommand.data, sizeof(BoardCommand));
+void sendReceivedBoardCommand() {
+  HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentReceivedBoardCommand.data, sizeof(BoardCommand));
+}
+
+void sendSafeCommand(uint32_t timestamp_ms) {
+  BoardCommand command = {
+    .fields = {
+      .header = {
+        .bits = {
+          .type = BOARD_COMMAND_BROADCAST_TYPE_CODE,
+          .commandIndex = 0,
+          .boardId = 0,
+          .commandCode = BOARD_COMMAND_CODE_SAFE
+        }
+      },
+      .value = 0,
+      .padding = {0},
+      .crc = 0
+    }
+  };
+
+  command.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, command.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - sizeof(uint32_t));
+
+  currentCommand = command;
+  gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
+  gsControl.commandSentCount = 0;
+}
+
+void sendUnsafeCommand(uint32_t timestamp_ms) {
+  BoardCommand command = {
+    .fields = {
+      .header = {
+        .bits = {
+          .type = BOARD_COMMAND_BROADCAST_TYPE_CODE,
+          .commandIndex = 0,
+          .boardId = 0,
+          .commandCode = BOARD_COMMAND_CODE_UNSAFE
+        }
+      },
+      .value = 0,
+      .padding = {0},
+      .crc = 0
+    }
+  };
+
+  command.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, command.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - sizeof(uint32_t));
+  
+  currentCommand = command;
+  gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
+  gsControl.commandSentCount = 0;
+}
+
+void sendIgniteCommand(uint32_t timestamp_ms) {
+  BoardCommand command = {
+    .fields = {
+      .header = {
+        .bits = {
+          .type = BOARD_COMMAND_UNICAST_TYPE_CODE,
+          .commandIndex = 0,
+          .boardId = ENGINE_BOARD_ID,
+          .commandCode = ENGINE_COMMAND_CODE_FIRE_IGNITER
+        }
+      },
+      .value = 0,
+      .padding = {0},
+      .crc = 0
+    }
+  };
+
+  command.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, command.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - sizeof(uint32_t));
+  
+  currentCommand = command;
+  gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
+  gsControl.commandSentCount = 0;
+}
+
+void sendLaunchCommand(uint32_t timestamp_ms) {
+  BoardCommand command = {
+    .fields = {
+      .header = {
+        .bits = {
+          .type = BOARD_COMMAND_UNICAST_TYPE_CODE,
+          .commandIndex = 0,
+          .boardId = ENGINE_BOARD_ID,
+          .commandCode = ENGINE_COMMAND_CODE_OPEN_VALVE
+        }
+      },
+      .value = 0,
+      .padding = {0},
+      .crc = 0
+    }
+  };
+
+  command.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, command.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - sizeof(uint32_t));
+  
+  currentCommand = command;
+  gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
+  gsControl.commandSentCount = 0;
 }
 
 void sendACKResponse() {
@@ -404,7 +413,7 @@ void sendACKResponse() {
         .bits = {
           .type = COMMAND_RESPONSE_TYPE_CODE,
           .boardId = GS_CONTROL_BOARD_ID,
-          .commandIndex = currentBoardCommand.fields.header.bits.commandIndex,
+          .commandIndex = currentReceivedBoardCommand.fields.header.bits.commandIndex,
           .response = RESPONSE_CODE_OK
         }
       },
@@ -418,125 +427,30 @@ void sendACKResponse() {
 }
 
 uint8_t checkUnsafe() {
-  uint8_t result = 0;
-  if (gsControl.status.bits.state != GS_CONTROL_STATE_ABORT) {
-    result = 1;
-  }
-  return result;
-}
-
-uint8_t checkAllowFill() {
-  uint8_t result = 0;
-  if (gsControl.status.bits.state != GS_CONTROL_STATE_ABORT && 
-      gsControl.status.bits.isUnsafeKeySwitchPressed) {
-    result = 1;
-  }
-  return result;
-}
-
-void parseUartPacket() {
-  switch (telemetryPacketType)
-  {
-    case COMMAND_RESPONSE_TYPE_CODE:
-      parseCommandResponsePacket();
-      break;
-    case TELEMETRY_TYPE_CODE:
-      parseTelemetryPacket(telemetryPacketHeader);
-      break;
-    case STATUS_TYPE_CODE:
-      parseStatusPacket(telemetryPacketHeader);
-      break;
-    default:
-      // RAISE ERROR FLAG
-      break;
-  }
+  return gsControl.status.bits.isEmergencyStopButtonPressed == 1;
 }
 
 uint8_t parseUsbPacket() {
   uint8_t successfullyParsed = 0;
   
-  //commandPacketHeader = gsControl.usb->rxBuffer[0] | gsControl.usb->rxBuffer[1] << 8 | gsControl.usb->rxBuffer[2] << 16 | gsControl.usb->rxBuffer[3] << 24;
-  currentBoardCommand.data[0] = gsControl.usb->rxBuffer[0];
-  currentBoardCommand.data[1] = gsControl.usb->rxBuffer[1];
-  currentBoardCommand.data[2] = gsControl.usb->rxBuffer[2];
-  currentBoardCommand.data[3] = gsControl.usb->rxBuffer[3];
+  currentReceivedBoardCommand.data[0] = gsControl.usb->rxBuffer[0];
+  currentReceivedBoardCommand.data[1] = gsControl.usb->rxBuffer[1];
+  currentReceivedBoardCommand.data[2] = gsControl.usb->rxBuffer[2];
+  currentReceivedBoardCommand.data[3] = gsControl.usb->rxBuffer[3];
   
-  if (currentBoardCommand.fields.header.bits.type == BOARD_COMMAND_TYPE_CODE) {
-    // CHECK CRC
+  if (currentReceivedBoardCommand.fields.header.bits.type == BOARD_COMMAND_UNICAST_TYPE_CODE) {
+
     parseBoardCommandPacket();
     successfullyParsed = 1;
   }
   return successfullyParsed;
 }
 
-void parseCommandResponsePacket() {
-  // Check CRC
-  for (uint8_t i = 0; i < sizeof(CommandResponse); i++) {
-    currentResponse.data[i] = uartBuffer[i];
-  }
-}
-
-void parseBoardCommandPacket() {
-  // Check CRC
+uint8_t parseBoardCommandPacket() {
   for (uint8_t i = 0; i < sizeof(BoardCommand); i++) {
-    currentBoardCommand.data[i] = gsControl.usb->rxBuffer[i];
+    currentReceivedBoardCommand.data[i] = gsControl.usb->rxBuffer[i];
   }
-}
-
-void parseTelemetryPacket(uint32_t headerValue) {
-  switch (headerValue & 0x000000D0UL) {
-    case ENGINE_BOARD_ID:
-      parseEngineTelemetryPacket();
-      break;
-    case FILLING_STATION_BOARD_ID:
-      parseFillingStationTelemetryPacket();
-      break;
-    default:
-      // UNKNOWN BOARD, RAISE ERROR FLAG
-      break;
-  }
-}
-
-void parseStatusPacket(uint32_t headerValue) {
-  switch (headerValue & 0x000000D0UL) {
-    case ENGINE_BOARD_ID:
-      parseEngineStatusPacket();
-      break;
-    case FILLING_STATION_BOARD_ID:
-      parseFillingStationStatusPacket();
-      break;
-    default:
-      // UNKNOWN BOARD, RAISE ERROR FLAG
-      break;
-  }
-}
-
-void parseEngineTelemetryPacket() {
-  // Check CRC
-  for (uint8_t i = 0; i < sizeof(EngineTelemetryPacket); i++) {
-    currentEngineTelemetryPacket.data[i] = uartBuffer[i];
-  }
-}
-
-void parseEngineStatusPacket() {
-  // Check CRC
-  for (uint8_t i = 0; i < sizeof(EngineStatusPacket); i++) {
-    currentEngineStatusPacket.data[i] = uartBuffer[i];
-  }
-}
-
-void parseFillingStationTelemetryPacket() {
-  // Check CRC
-  for (uint8_t i = 0; i < sizeof(FillingStationTelemetryPacket); i++) {
-    currentFillingStationTelemetryPacket.data[i] = uartBuffer[i];
-  }
-}
-
-void parseFillingStationStatusPacket() {
-  // Check CRC
-  for (uint8_t i = 0; i < sizeof(FillingStationTelemetryPacket); i++) {
-    currentFillingStationStatusPacket.data[i] = uartBuffer[i];
-  }
+  return 1; // CRC
 }
 
 void initGPIOs() {

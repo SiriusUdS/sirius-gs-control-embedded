@@ -27,9 +27,12 @@
 
 #define FUNCTION_NULL_POINTER 0
 
-#define UART_BUFFER_SIZE (uint16_t)0x40
+#define GS_CONTROL_TELECOMMUNICATION_UART_BUFFER_SIZE 2048
 
 #define GS_CONTROL_DELAY_BETWEEN_STATUS_PACKETS_MS 50
+#define GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS 50
+
+#define GS_CONTROL_SEND_COMMAND_AMOUNT 5
 
 typedef struct {
   uint8_t currentState;
@@ -42,6 +45,9 @@ typedef struct {
   Button* buttons;
 
   uint32_t communicationTimestampTarget_ms;
+  uint32_t commandTimestampTarget_ms;
+  uint8_t commandSentCount;
+
   uint8_t uartRxHalfReady;
   uint8_t uartRxCpltReady;
 
