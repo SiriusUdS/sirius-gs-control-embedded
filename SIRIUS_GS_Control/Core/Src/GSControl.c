@@ -4,6 +4,9 @@ static GSControl gsControl = {0};
 
 BoardCommand currentReceivedBoardCommand = {0};
 CommandResponse currentResponse = {0};
+
+uint32_t lastReceivedGSCommandTimestamp_ms = 0;
+
 BoardCommand currentCommand = {
   .fields = {
     .header = {
@@ -11,7 +14,71 @@ BoardCommand currentCommand = {
         .type = BOARD_COMMAND_UNICAST_TYPE_CODE,
         .commandIndex = 0,
         .boardId = GS_CONTROL_BOARD_ID,
-        .commandCode = 0
+        .commandCode = BOARD_COMMAND_CODE_SAFE
+      }
+    },
+    .value = 0,
+    .padding = {0},
+    .crc = 0
+  }
+};
+
+BoardCommand safeCommand = {
+  .fields = {
+    .header = {
+      .bits = {
+        .type = BOARD_COMMAND_BROADCAST_TYPE_CODE,
+        .commandIndex = 0,
+        .boardId = 0,
+        .commandCode = BOARD_COMMAND_CODE_SAFE
+      }
+    },
+    .value = 0,
+    .padding = {0},
+    .crc = 0
+  }
+};
+
+BoardCommand unsafeCommand = {
+  .fields = {
+    .header = {
+      .bits = {
+        .type = BOARD_COMMAND_BROADCAST_TYPE_CODE,
+        .commandIndex = 0,
+        .boardId = 0,
+        .commandCode = BOARD_COMMAND_CODE_UNSAFE
+      }
+    },
+    .value = 0,
+    .padding = {0},
+    .crc = 0
+  }
+};
+
+BoardCommand igniteCommand = {
+  .fields = {
+    .header = {
+      .bits = {
+        .type = BOARD_COMMAND_UNICAST_TYPE_CODE,
+        .commandIndex = 0,
+        .boardId = ENGINE_BOARD_ID,
+        .commandCode = ENGINE_COMMAND_CODE_FIRE_IGNITER
+      }
+    },
+    .value = 0,
+    .padding = {0},
+    .crc = 0
+  }
+};
+
+BoardCommand launchCommand = {
+  .fields = {
+    .header = {
+      .bits = {
+        .type = BOARD_COMMAND_UNICAST_TYPE_CODE,
+        .commandIndex = 0,
+        .boardId = ENGINE_BOARD_ID,
+        .commandCode = ENGINE_COMMAND_CODE_OPEN_VALVE
       }
     },
     .value = 0,
@@ -31,6 +98,7 @@ GSControlStatusPacket currentGSControlStatusPacket = {
     },
     .errorStatus = 0,
     .status = 0,
+    .lastReceivedGSCommandTimestamp_ms = 0,
     .padding = {0},
     .timestamp_ms = 0,
     .crc = 0
@@ -85,7 +153,7 @@ void GSControl_init(GPIO* gpios, UART* uart, volatile USB* usb, Telecommunicatio
 
   gsControl.communicationTimestampTarget_ms = 0;
   gsControl.commandTimestampTarget_ms = 0;
-  gsControl.commandSentCount = GS_CONTROL_SEND_COMMAND_AMOUNT;
+
 
   gsControl.uartRxHalfReady = 0;
   gsControl.uartRxCpltReady = 0;
@@ -150,19 +218,33 @@ void executeUnsafe(uint32_t timestamp_ms) {
   if (!gsControl.status.bits.isEmergencyStopButtonPressed) {
     sendSafeCommand(timestamp_ms);
     gsControl.currentState = GS_CONTROL_STATE_SAFE;
+    return;
   }
 
   if (gsControl.status.bits.isFireIgniterButtonPressed) {
     if (gsControl.status.bits.isArmIgniterSwitchOn) {
-      sendIgniteCommand(timestamp_ms);
+      if (!gsControl.status.bits.isAllowFillSwitchOn && !gsControl.status.bits.isAllowDumpSwitchOn) {
+        sendIgniteCommand(timestamp_ms);
+        return;
+      }
     }
   }
 
   if (gsControl.status.bits.isValveStartButtonPressed) {
     if (gsControl.status.bits.isArmServoSwitchOn) {
-      sendLaunchCommand(timestamp_ms);
+      if (!gsControl.status.bits.isAllowFillSwitchOn && !gsControl.status.bits.isAllowDumpSwitchOn) {
+        sendLaunchCommand(timestamp_ms);
+        return;
+      }
     }
   }
+
+  if (currentReceivedBoardCommand.fields.header.bits.commandCode != BOARD_COMMAND_CODE_ABORT) {
+    sendUnsafeCommand(timestamp_ms);
+    return;
+  }
+  sendSafeCommand(timestamp_ms);
+  gsControl.currentState = GS_CONTROL_STATE_ABORT;
 }
 
 void executeAbort(uint32_t timestamp_ms) {
@@ -170,12 +252,12 @@ void executeAbort(uint32_t timestamp_ms) {
 }
 
 void handleCurrentCommand(uint32_t timestamp_ms) {
-  if (gsControl.commandTimestampTarget_ms <= timestamp_ms) {
-    if (gsControl.commandSentCount < GS_CONTROL_SEND_COMMAND_AMOUNT) {
-      gsControl.commandSentCount++;
-      gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
-      HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentCommand.data, sizeof(BoardCommand));
-    }
+  if (gsControl.commandTimestampTarget_ms <= timestamp_ms && gsControl.currentState != GS_CONTROL_STATE_ABORT) {
+    //if (timestamp_ms - lastReceivedGSCommandTimestamp_ms < GS_CONTROL_BOARD_COMMAND_DURATION_MS) {
+    //  return;
+    //}
+    gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
+    HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentCommand.data, sizeof(BoardCommand));
   }
 }
 
@@ -302,108 +384,35 @@ void sendStatusPacket(uint32_t timestamp_ms) {
   currentGSControlStatusPacket.fields.status.value = gsControl.status.value;
   currentGSControlStatusPacket.fields.errorStatus.value = gsControl.errorStatus.value;
   currentGSControlStatusPacket.fields.timestamp_ms = timestamp_ms;
-  currentGSControlStatusPacket.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, currentGSControlStatusPacket.data32, (sizeof(GSControlStatusPacket) / sizeof(uint32_t)) - sizeof(uint32_t));
+  currentGSControlStatusPacket.fields.lastReceivedGSCommandTimestamp_ms = lastReceivedGSCommandTimestamp_ms;
+  currentGSControlStatusPacket.fields.lastBoardSentCommandCode = currentCommand.fields.header.bits.commandCode;
+  currentGSControlStatusPacket.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, currentGSControlStatusPacket.data32, (sizeof(GSControlStatusPacket) / sizeof(uint32_t)) - sizeof(uint8_t));
   gsControl.usb->transmit((struct USB*)gsControl.usb, currentGSControlStatusPacket.data, sizeof(GSControlStatusPacket));
 }
 
 void sendReceivedBoardCommand() {
+  lastReceivedGSCommandTimestamp_ms = HAL_GetTick();
   HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentReceivedBoardCommand.data, sizeof(BoardCommand));
 }
 
 void sendSafeCommand(uint32_t timestamp_ms) {
-  BoardCommand command = {
-    .fields = {
-      .header = {
-        .bits = {
-          .type = BOARD_COMMAND_BROADCAST_TYPE_CODE,
-          .commandIndex = 0,
-          .boardId = 0,
-          .commandCode = BOARD_COMMAND_CODE_SAFE
-        }
-      },
-      .value = 0,
-      .padding = {0},
-      .crc = 0
-    }
-  };
-
-  command.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, command.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - sizeof(uint32_t));
-
-  currentCommand = command;
-  gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
-  gsControl.commandSentCount = 0;
+  currentCommand = safeCommand;
+  currentCommand.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, currentCommand.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - 1);
 }
 
 void sendUnsafeCommand(uint32_t timestamp_ms) {
-  BoardCommand command = {
-    .fields = {
-      .header = {
-        .bits = {
-          .type = BOARD_COMMAND_BROADCAST_TYPE_CODE,
-          .commandIndex = 0,
-          .boardId = 0,
-          .commandCode = BOARD_COMMAND_CODE_UNSAFE
-        }
-      },
-      .value = 0,
-      .padding = {0},
-      .crc = 0
-    }
-  };
-
-  command.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, command.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - sizeof(uint32_t));
-  
-  currentCommand = command;
-  gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
-  gsControl.commandSentCount = 0;
+  currentCommand = unsafeCommand;
+  currentCommand.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, currentCommand.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - 1);
 }
 
 void sendIgniteCommand(uint32_t timestamp_ms) {
-  BoardCommand command = {
-    .fields = {
-      .header = {
-        .bits = {
-          .type = BOARD_COMMAND_UNICAST_TYPE_CODE,
-          .commandIndex = 0,
-          .boardId = ENGINE_BOARD_ID,
-          .commandCode = ENGINE_COMMAND_CODE_FIRE_IGNITER
-        }
-      },
-      .value = 0,
-      .padding = {0},
-      .crc = 0
-    }
-  };
-
-  command.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, command.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - sizeof(uint32_t));
-  
-  currentCommand = command;
-  gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
-  gsControl.commandSentCount = 0;
+  currentCommand = igniteCommand;
+  currentCommand.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, currentCommand.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - 1);
 }
 
 void sendLaunchCommand(uint32_t timestamp_ms) {
-  BoardCommand command = {
-    .fields = {
-      .header = {
-        .bits = {
-          .type = BOARD_COMMAND_UNICAST_TYPE_CODE,
-          .commandIndex = 0,
-          .boardId = ENGINE_BOARD_ID,
-          .commandCode = ENGINE_COMMAND_CODE_OPEN_VALVE
-        }
-      },
-      .value = 0,
-      .padding = {0},
-      .crc = 0
-    }
-  };
-
-  command.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, command.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - sizeof(uint32_t));
-  
-  currentCommand = command;
-  gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
-  gsControl.commandSentCount = 0;
+  currentCommand = launchCommand;
+  currentCommand.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, currentCommand.data32, (sizeof(BoardCommand) / sizeof(uint32_t)) - 1);
 }
 
 void sendACKResponse() {
@@ -421,7 +430,7 @@ void sendACKResponse() {
     }
   };
 
-  commandResponse.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, commandResponse.data32, (sizeof(CommandResponse) / sizeof(uint32_t)) - sizeof(uint32_t));
+  commandResponse.fields.crc = HAL_CRC_Calculate((CRC_HandleTypeDef*)gsControl.hcrc, commandResponse.data32, (sizeof(CommandResponse) / sizeof(uint32_t)) - sizeof(uint8_t));
 
   gsControl.usb->transmit((struct USB*)gsControl.usb, commandResponse.data, sizeof(CommandResponse));
 }
@@ -438,8 +447,8 @@ uint8_t parseUsbPacket() {
   currentReceivedBoardCommand.data[2] = gsControl.usb->rxBuffer[2];
   currentReceivedBoardCommand.data[3] = gsControl.usb->rxBuffer[3];
   
-  if (currentReceivedBoardCommand.fields.header.bits.type == BOARD_COMMAND_UNICAST_TYPE_CODE) {
-
+  if (currentReceivedBoardCommand.fields.header.bits.type == BOARD_COMMAND_UNICAST_TYPE_CODE ||
+      currentReceivedBoardCommand.fields.header.bits.type == BOARD_COMMAND_BROADCAST_TYPE_CODE) {
     parseBoardCommandPacket();
     successfullyParsed = 1;
   }
