@@ -366,6 +366,12 @@ void handleIncomingCommand() {
           sendReceivedBoardCommand();
         }
         break;
+      case FILLING_STATION_COMMAND_CODE_SET_DUMP_VALVE_HEATER_POWER_PCT:
+        sendReceivedBoardCommand();
+        break;
+      case FILLING_STATION_COMMAND_CODE_SET_FILL_VALVE_HEATER_POWER_PCT:
+        sendReceivedBoardCommand();
+        break;
       default:
         break;
     }
