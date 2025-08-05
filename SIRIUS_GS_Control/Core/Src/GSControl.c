@@ -59,9 +59,9 @@ BoardCommand igniteCommand = {
   .fields = {
     .header = {
       .bits = {
-        .type = BOARD_COMMAND_UNICAST_TYPE_CODE,
+        .type = BOARD_COMMAND_BROADCAST_TYPE_CODE,
         .commandIndex = 0,
-        .boardId = ENGINE_BOARD_ID,
+        .boardId = 0,
         .commandCode = ENGINE_COMMAND_CODE_FIRE_IGNITER
       }
     },
@@ -241,10 +241,11 @@ void executeUnsafe(uint32_t timestamp_ms) {
 
   if (currentReceivedBoardCommand.fields.header.bits.commandCode != BOARD_COMMAND_CODE_ABORT) {
     sendUnsafeCommand(timestamp_ms);
-    return;
   }
-  sendSafeCommand(timestamp_ms);
-  gsControl.currentState = GS_CONTROL_STATE_ABORT;
+  else {
+    gsControl.currentState = GS_CONTROL_STATE_ABORT;
+    sendReceivedBoardCommand();
+  }
 }
 
 void executeAbort(uint32_t timestamp_ms) {
@@ -253,11 +254,10 @@ void executeAbort(uint32_t timestamp_ms) {
 
 void handleCurrentCommand(uint32_t timestamp_ms) {
   if (gsControl.commandTimestampTarget_ms <= timestamp_ms && gsControl.currentState != GS_CONTROL_STATE_ABORT) {
-    //if (timestamp_ms - lastReceivedGSCommandTimestamp_ms < GS_CONTROL_BOARD_COMMAND_DURATION_MS) {
-    //  return;
-    //}
     gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
-    HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentCommand.data, sizeof(BoardCommand));
+    if (((UART_HandleTypeDef*)gsControl.uart->externalHandle)->gState == HAL_UART_STATE_READY) {
+      HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentCommand.data, sizeof(BoardCommand));
+    }
   }
 }
 
@@ -530,5 +530,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
   if(huart->Instance == USART1) {
     gsControl.uartRxHalfReady = 1;
+  }
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+  if(huart->Instance == USART1) {
+    currentGSControlStatusPacket.fields.lastSentCommandTimestamp_ms = HAL_GetTick();
   }
 }
