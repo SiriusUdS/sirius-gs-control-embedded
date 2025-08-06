@@ -174,6 +174,7 @@ void GSControl_tick(uint32_t timestamp_ms) {
   }
   gsControl.telecommunication->tick((struct Telecommunication*)gsControl.telecommunication, timestamp_ms);
   
+  gsControl.status.bits.state = gsControl.currentState;
   updateButtonStates();
   handleCurrentCommand(timestamp_ms);
   handleIncomingCommand();
@@ -221,7 +222,6 @@ void executeUnsafe(uint32_t timestamp_ms) {
   if (!gsControl.status.bits.isEmergencyStopButtonPressed) {
     sendSafeCommand(timestamp_ms);
     gsControl.currentState = GS_CONTROL_STATE_SAFE;
-    fastCommandActive = 0;
     return;
   }
 
@@ -246,6 +246,7 @@ void executeUnsafe(uint32_t timestamp_ms) {
       }
     }
   }
+  fastCommandActive = 0;
 
   if (currentReceivedBoardCommand.fields.header.bits.commandCode != BOARD_COMMAND_CODE_ABORT) {
     sendUnsafeCommand(timestamp_ms);
@@ -371,6 +372,20 @@ void handleIncomingCommand() {
         break;
       case FILLING_STATION_COMMAND_CODE_OPEN_FILL_VALVE_PCT:
         if (checkUnsafe() && gsControl.status.bits.isAllowFillSwitchOn) {
+          sendReceivedBoardCommand();
+        }
+        break;
+      case ENGINE_COMMAND_CODE_OPEN_NOS_VALVE_PCT:
+        if (checkUnsafe() && gsControl.status.bits.isArmServoSwitchOn &&
+            !gsControl.status.bits.isArmIgniterSwitchOn && !gsControl.status.bits.isAllowFillSwitchOn
+            && !gsControl.status.bits.isAllowDumpSwitchOn) {
+          sendReceivedBoardCommand();
+        }
+        break;
+      case ENGINE_COMMAND_CODE_OPEN_IPA_VALVE_PCT:
+        if (checkUnsafe() && gsControl.status.bits.isArmServoSwitchOn &&
+            !gsControl.status.bits.isArmIgniterSwitchOn && !gsControl.status.bits.isAllowFillSwitchOn
+            && !gsControl.status.bits.isAllowDumpSwitchOn) {
           sendReceivedBoardCommand();
         }
         break;
