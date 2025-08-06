@@ -7,6 +7,8 @@ CommandResponse currentResponse = {0};
 
 uint32_t lastReceivedGSCommandTimestamp_ms = 0;
 
+uint8_t fastCommandActive = 0;
+
 BoardCommand currentCommand = {
   .fields = {
     .header = {
@@ -212,12 +214,14 @@ void executeSafe(uint32_t timestamp_ms) {
     sendUnsafeCommand(timestamp_ms);
     gsControl.currentState = GS_CONTROL_STATE_UNSAFE;
   }
+  fastCommandActive = 0;
 }
 
 void executeUnsafe(uint32_t timestamp_ms) {
   if (!gsControl.status.bits.isEmergencyStopButtonPressed) {
     sendSafeCommand(timestamp_ms);
     gsControl.currentState = GS_CONTROL_STATE_SAFE;
+    fastCommandActive = 0;
     return;
   }
 
@@ -225,6 +229,8 @@ void executeUnsafe(uint32_t timestamp_ms) {
     if (gsControl.status.bits.isArmIgniterSwitchOn) {
       if (!gsControl.status.bits.isAllowFillSwitchOn && !gsControl.status.bits.isAllowDumpSwitchOn) {
         sendIgniteCommand(timestamp_ms);
+        gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_FAST_MS;
+        fastCommandActive = 1;
         return;
       }
     }
@@ -234,6 +240,8 @@ void executeUnsafe(uint32_t timestamp_ms) {
     if (gsControl.status.bits.isArmServoSwitchOn) {
       if (!gsControl.status.bits.isAllowFillSwitchOn && !gsControl.status.bits.isAllowDumpSwitchOn) {
         sendLaunchCommand(timestamp_ms);
+        gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_FAST_MS;
+        fastCommandActive = 1;
         return;
       }
     }
@@ -253,8 +261,8 @@ void executeAbort(uint32_t timestamp_ms) {
 }
 
 void handleCurrentCommand(uint32_t timestamp_ms) {
-  if (gsControl.commandTimestampTarget_ms <= timestamp_ms && gsControl.currentState != GS_CONTROL_STATE_ABORT) {
-    gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
+  if (gsControl.commandTimestampTarget_ms <= timestamp_ms) {
+    gsControl.commandTimestampTarget_ms = fastCommandActive ? timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_FAST_MS : timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_MS;
     if (((UART_HandleTypeDef*)gsControl.uart->externalHandle)->gState == HAL_UART_STATE_READY) {
       HAL_UART_Transmit_DMA((UART_HandleTypeDef*)gsControl.uart->externalHandle, currentCommand.data, sizeof(BoardCommand));
     }
