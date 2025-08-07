@@ -229,7 +229,9 @@ void executeUnsafe(uint32_t timestamp_ms) {
     if (gsControl.status.bits.isArmIgniterSwitchOn) {
       if (!gsControl.status.bits.isAllowFillSwitchOn && !gsControl.status.bits.isAllowDumpSwitchOn) {
         sendIgniteCommand(timestamp_ms);
-        gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_FAST_MS;
+        if (!fastCommandActive) {
+          gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_FAST_MS;
+        }
         fastCommandActive = 1;
         return;
       }
@@ -240,7 +242,9 @@ void executeUnsafe(uint32_t timestamp_ms) {
     if (gsControl.status.bits.isArmServoSwitchOn) {
       if (!gsControl.status.bits.isAllowFillSwitchOn && !gsControl.status.bits.isAllowDumpSwitchOn) {
         sendLaunchCommand(timestamp_ms);
-        gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_FAST_MS;
+        if (!fastCommandActive) {
+          gsControl.commandTimestampTarget_ms = timestamp_ms + GS_CONTROL_DELAY_BETWEEN_COMMANDS_FAST_MS;
+        }
         fastCommandActive = 1;
         return;
       }
